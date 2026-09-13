@@ -5170,8 +5170,17 @@ function restoreFocus(f){
     if(f.st!=null&&el.setSelectionRange) el.setSelectionRange(f.st,f.en);
   }catch(e){}
 }
+function snapChatBottom(){
+  var lg=document.getElementById('chatlog');
+  if(!lg) return null;
+  return {
+    atBottom:(lg.scrollHeight-lg.scrollTop-lg.clientHeight) < 40,
+    scrollTop:lg.scrollTop
+  };
+}
 function render(){
   var _f=snapFocus();
+  var _chatBottom=snapChatBottom();
   var v=state.view, t=titleOf(v);
   $('#pgTitle').innerHTML=esc(t[0])+'<span class="sub">'+esc(t[1])+'</span>';
   if(headMtn){ headMtn.stop(); headMtn=null; }
@@ -5188,7 +5197,12 @@ function render(){
   }
   if(v==='coach'&&L.paintMic) L.paintMic();
   if(v==='chat'){
-    var lg=$('#chatlog'); if(lg) lg.scrollTop=lg.scrollHeight;
+    var lg=$('#chatlog');
+    if(lg){
+      if(state._chatForceBottom||!_chatBottom||_chatBottom.atBottom) lg.scrollTop=lg.scrollHeight;
+      else lg.scrollTop=_chatBottom.scrollTop;
+    }
+    state._chatForceBottom=false;
     var ci=$('#chatIn');
     if(ci) ci.addEventListener('input',function(){ ci.style.height='auto'; ci.style.height=Math.min(150,ci.scrollHeight)+'px'; });
   }
@@ -7397,7 +7411,7 @@ function chatSys(){
 function sendChat(text){
   text=(text||'').trim(); if(!text) return;
   DB.chat.push({role:'user',content:text});
-  state.chatBusy=true; L.save(); L.render();
+  state.chatBusy=true; state._chatForceBottom=true; L.save(); L.render();
   var hist=DB.chat.slice(-16).map(function(m){ return {role:m.role,content:m.content}; });
   if(window.LDAI&&window.LDAI.agent){
     /* the assistant works through the same tools everything else uses */
@@ -9924,9 +9938,15 @@ function render(){
   if(pg.custom&&CUSTOM[pg.custom]){
     box.innerHTML=CUSTOM[pg.custom]();
   } else {
-    /* the view drew its own segment bar; sub-navigation replaces it */
-    box.innerHTML=box.innerHTML.replace(
+    /* the view drew its own segment bar; sub-navigation replaces it -
+       but only actually touch the DOM if there is one to strip. Any
+       innerHTML assignment destroys and recreates every child node
+       even when the replaced string is identical, which was silently
+       undoing scroll/focus state restored a moment ago in origRender(). */
+    var _cur=box.innerHTML;
+    var _next=_cur.replace(
       /<div class="wrap"><div style="height:14px"><\/div><div class="seg">[\s\S]*?<\/div><\/div>/,'');
+    if(_next!==_cur) box.innerHTML=_next;
   }
   box.insertAdjacentHTML('afterbegin',header(sec,pg));
   buildNav();
