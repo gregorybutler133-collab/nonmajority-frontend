@@ -3028,7 +3028,7 @@ function money(v){ return L.money(v); }
 /* ============================================================
    PHASE 2A — NEW BUCKETS
    ============================================================ */
-var NEW_BUCKETS=['customers','appointments','invoices','payments','custreviews','comms','events_log'];
+var NEW_BUCKETS=['customers','appointments','invoices','payments','custreviews','comms','events_log','conversations','templates','followUps'];
 (function extend(){
   NEW_BUCKETS.forEach(function(b){ if(OS.BUCKETS.indexOf(b)<0) OS.BUCKETS.push(b); });
   Object.keys(DB.spaces||{}).forEach(function(k){
@@ -6390,6 +6390,8 @@ function customerSheet(id){
   var s=sp();
   var appts=s.appointments.filter(function(a){ return a.customerId===c.id; })
     .sort(function(a,b){ return a.date<b.date?1:-1; });
+  var comms=(s.comms||[]).filter(function(m){ return m.customerId===c.id; })
+    .sort(function(a,b){ return (b.t||'')<(a.t||'')?-1:1; });
   var invs=s.invoices.filter(function(i){ return i.customerId===c.id; });
   var pays=s.payments.filter(function(p){ return p.customerId===c.id; });
   var revs=s.custreviews.filter(function(r){ return r.customerId===c.id; });
@@ -6422,6 +6424,17 @@ function customerSheet(id){
         return '<div class="note"><div class="t">'+esc(L.fmtDate(a.date))+' '+esc(a.time)+
           ' · <span class="pill '+apStat(a.status)+'">'+esc(a.status)+'</span></div>'+
           '<p>'+esc(a.title)+(a.value?' · '+L.money(a.value):'')+'</p></div>';
+      }).join('')+'</div>';
+  }
+  if(comms.length){
+    h+='<div class="sect-h"><h2>Conversations</h2><span class="n">'+comms.length+'</span></div><div class="notes">'+
+      comms.slice(0,10).map(function(m){
+        var dirLabel=m.direction==='inbound'?'From them':'From you';
+        var chan=(m.channel||'call').toUpperCase();
+        var statPill=m.status==='draft'?'med':m.status==='sent'?'good':'flat';
+        return '<div class="note"><div class="t">'+esc(L.fmtDate((m.t||m.created||'').slice(0,10)))+
+          ' · '+esc(chan)+' · '+esc(dirLabel)+' · <span class="pill '+statPill+'">'+esc(m.status||'logged')+'</span></div>'+
+          '<p>'+esc(m.body||m.summary||'')+'</p></div>';
       }).join('')+'</div>';
   }
   if(invs.length){
@@ -7238,12 +7251,17 @@ document.addEventListener('click',function(e){
     var sx=$('#cloudSyncResult');
     if(sx) sx.innerHTML='<p class="hint"><span class="spin"></span> Syncing…</p>';
     Promise.all([window.LDCLOUD.pull(), window.LDCLOUD.pullContacts(), window.LDCLOUD.pullTasks(),
-      window.LDCLOUD.pullCalEvents(), window.LDCLOUD.pullAppts()]).then(function(){
+      window.LDCLOUD.pullCalEvents(), window.LDCLOUD.pullAppts(), window.LDCLOUD.pullConversations(),
+      window.LDCLOUD.pullMessages(), window.LDCLOUD.pullTemplates(), window.LDCLOUD.pullFollowUps()]).then(function(){
       window.LDCLOUD.diffAndQueue();
       window.LDCLOUD.diffAndQueueContacts();
       window.LDCLOUD.diffAndQueueTasks();
       window.LDCLOUD.diffAndQueueCalEvents();
       window.LDCLOUD.diffAndQueueAppts();
+      window.LDCLOUD.diffAndQueueConversations();
+      window.LDCLOUD.diffAndQueueMessages();
+      window.LDCLOUD.diffAndQueueTemplates();
+      window.LDCLOUD.diffAndQueueFollowUps();
       if(window.LDINT) LDINT.setStatus('cloudsync','connected',{lastSync:new Date().toISOString().slice(0,16).replace('T',' '),lastError:''});
       L.render(); L.toast('Synced');
     }).catch(function(e){
@@ -7269,6 +7287,10 @@ document.addEventListener('change',function(e){
     window.LDCLOUD.pullTasks().then(function(){ L.render(); });
     window.LDCLOUD.pullCalEvents().then(function(){ L.render(); });
     window.LDCLOUD.pullAppts().then(function(){ L.render(); });
+    window.LDCLOUD.pullConversations().then(function(){ L.render(); });
+    window.LDCLOUD.pullMessages().then(function(){ L.render(); });
+    window.LDCLOUD.pullTemplates().then(function(){ L.render(); });
+    window.LDCLOUD.pullFollowUps().then(function(){ L.render(); });
   }
 },false);
 
@@ -7647,6 +7669,22 @@ function cfg(){
   if(!c.apptsPending) c.apptsPending=[];
   if(!c.apptsSnapshot) c.apptsSnapshot={};
   if(c.apptsLastSync===undefined) c.apptsLastSync='';
+  /* Phase 6 (Communications): same pattern four more times — conversations
+     and templates are new local buckets (see NEW_BUCKETS below); messages
+     is the existing sp().comms; follow-ups is a new bucket too. Each gets
+     its own independent queue/snapshot, same safe backfill. */
+  if(!c.conversationsPending) c.conversationsPending=[];
+  if(!c.conversationsSnapshot) c.conversationsSnapshot={};
+  if(c.conversationsLastSync===undefined) c.conversationsLastSync='';
+  if(!c.messagesPending) c.messagesPending=[];
+  if(!c.messagesSnapshot) c.messagesSnapshot={};
+  if(c.messagesLastSync===undefined) c.messagesLastSync='';
+  if(!c.templatesPending) c.templatesPending=[];
+  if(!c.templatesSnapshot) c.templatesSnapshot={};
+  if(c.templatesLastSync===undefined) c.templatesLastSync='';
+  if(!c.followUpsPending) c.followUpsPending=[];
+  if(!c.followUpsSnapshot) c.followUpsSnapshot={};
+  if(c.followUpsLastSync===undefined) c.followUpsLastSync='';
   return c;
 }
 
@@ -7708,7 +7746,11 @@ function disconnect(){
     contactsPending:[],contactsSnapshot:{},contactsLastSync:'',
     tasksPending:[],tasksSnapshot:{},tasksLastSync:'',
     calEventsPending:[],calEventsSnapshot:{},calEventsLastSync:'',
-    apptsPending:[],apptsSnapshot:{},apptsLastSync:''};
+    apptsPending:[],apptsSnapshot:{},apptsLastSync:'',
+    conversationsPending:[],conversationsSnapshot:{},conversationsLastSync:'',
+    messagesPending:[],messagesSnapshot:{},messagesLastSync:'',
+    templatesPending:[],templatesSnapshot:{},templatesLastSync:'',
+    followUpsPending:[],followUpsSnapshot:{},followUpsLastSync:''};
   L.save();
 }
 
@@ -8147,19 +8189,333 @@ function pullAppts(){
 
 window.addEventListener('online',function(){ flushAppts(); });
 
+/* ---------------------------------------------------------
+   Conversations (Phase 6 Communications). sp().conversations — new
+   bucket, workspace-scoped already via the NEW_BUCKETS backfill above.
+   --------------------------------------------------------- */
+function hashConversation(x){
+  var s=JSON.stringify(x);
+  var h=5381;
+  for(var i=0;i<s.length;i+=7) h=((h<<5)+h+s.charCodeAt(i))|0;
+  return String(h)+':'+s.length;
+}
+function conversationsArr(){
+  return (window.LDOS && window.LDOS.space) ? window.LDOS.space().conversations : [];
+}
+var flushingConversations=false;
+function flushConversations(){
+  if(flushingConversations||!ready()) return Promise.resolve();
+  var c=cfg();
+  if(!c.conversationsPending.length) return Promise.resolve();
+  flushingConversations=true;
+  var item=c.conversationsPending[0];
+  var task;
+  if(item.op==='delete'){
+    task=authedFetch('/v1/conversations/'+encodeURIComponent(item.id),{method:'DELETE'});
+  } else {
+    var payload=Object.assign({},item.payload,{workspace_id:c.workspaceId});
+    task=authedFetch('/v1/conversations/'+encodeURIComponent(item.id),{method:'PUT',body:payload})
+      .catch(function(){ return authedFetch('/v1/conversations',{method:'POST',body:payload}); });
+  }
+  return task.then(function(){
+    c.conversationsPending.shift();
+    if(item.op==='delete') delete c.conversationsSnapshot[item.id];
+    else c.conversationsSnapshot[item.id]=hashConversation(item.payload);
+    flushingConversations=false;
+    L.save();
+    return flushConversations();
+  }).catch(function(){ flushingConversations=false; });
+}
+function diffAndQueueConversations(){
+  if(!ready()) return;
+  var c=cfg();
+  var seen={};
+  conversationsArr().forEach(function(x){
+    seen[x.id]=1;
+    var h=hashConversation(x);
+    if(c.conversationsSnapshot[x.id]!==h){
+      c.conversationsPending=c.conversationsPending.filter(function(p){ return p.id!==x.id; });
+      c.conversationsPending.push({op:'upsert',id:x.id,payload:x,ts:Date.now()});
+    }
+  });
+  Object.keys(c.conversationsSnapshot).forEach(function(id){
+    if(!seen[id]){
+      c.conversationsPending=c.conversationsPending.filter(function(p){ return p.id!==id; });
+      c.conversationsPending.push({op:'delete',id:id,payload:null,ts:Date.now()});
+    }
+  });
+  flushConversations();
+}
+function pullConversations(){
+  if(!ready()) return Promise.resolve();
+  var c=cfg();
+  return authedFetch('/v1/conversations?workspace_id='+encodeURIComponent(c.workspaceId)).then(function(r){
+    var pendingIds={};
+    c.conversationsPending.forEach(function(p){ pendingIds[p.id]=1; });
+    var arr=conversationsArr();
+    (r.conversations||[]).forEach(function(remote){
+      if(pendingIds[remote.id]) return;
+      var idx=-1;
+      for(var i=0;i<arr.length;i++){ if(arr[i].id===remote.id){ idx=i; break; } }
+      if(idx>-1) arr[idx]=remote; else arr.unshift(remote);
+      c.conversationsSnapshot[remote.id]=hashConversation(remote);
+    });
+    c.conversationsLastSync=new Date().toISOString().slice(0,16).replace('T',' ');
+    L.save();
+  });
+}
+window.addEventListener('online',function(){ flushConversations(); });
+
+/* ---------------------------------------------------------
+   Messages (Phase 6 Communications). Reuses the EXISTING sp().comms
+   bucket — draftMessage/sendMessage/logCommunication already write here,
+   nothing about those actions changes. Only the sync lane is new.
+   --------------------------------------------------------- */
+function hashMessage(x){
+  var s=JSON.stringify(x);
+  var h=5381;
+  for(var i=0;i<s.length;i+=7) h=((h<<5)+h+s.charCodeAt(i))|0;
+  return String(h)+':'+s.length;
+}
+function messagesArr(){
+  return (window.LDOS && window.LDOS.space) ? window.LDOS.space().comms : [];
+}
+var flushingMessages=false;
+function flushMessages(){
+  if(flushingMessages||!ready()) return Promise.resolve();
+  var c=cfg();
+  if(!c.messagesPending.length) return Promise.resolve();
+  flushingMessages=true;
+  var item=c.messagesPending[0];
+  var task;
+  if(item.op==='delete'){
+    task=authedFetch('/v1/messages/'+encodeURIComponent(item.id),{method:'DELETE'});
+  } else {
+    var payload=Object.assign({},item.payload,{workspace_id:c.workspaceId});
+    task=authedFetch('/v1/messages/'+encodeURIComponent(item.id),{method:'PUT',body:payload})
+      .catch(function(){ return authedFetch('/v1/messages',{method:'POST',body:payload}); });
+  }
+  return task.then(function(){
+    c.messagesPending.shift();
+    if(item.op==='delete') delete c.messagesSnapshot[item.id];
+    else c.messagesSnapshot[item.id]=hashMessage(item.payload);
+    flushingMessages=false;
+    L.save();
+    return flushMessages();
+  }).catch(function(){ flushingMessages=false; });
+}
+function diffAndQueueMessages(){
+  if(!ready()) return;
+  var c=cfg();
+  var seen={};
+  messagesArr().forEach(function(x){
+    seen[x.id]=1;
+    var h=hashMessage(x);
+    if(c.messagesSnapshot[x.id]!==h){
+      c.messagesPending=c.messagesPending.filter(function(p){ return p.id!==x.id; });
+      c.messagesPending.push({op:'upsert',id:x.id,payload:x,ts:Date.now()});
+    }
+  });
+  Object.keys(c.messagesSnapshot).forEach(function(id){
+    if(!seen[id]){
+      c.messagesPending=c.messagesPending.filter(function(p){ return p.id!==id; });
+      c.messagesPending.push({op:'delete',id:id,payload:null,ts:Date.now()});
+    }
+  });
+  flushMessages();
+}
+function pullMessages(){
+  if(!ready()) return Promise.resolve();
+  var c=cfg();
+  return authedFetch('/v1/messages?workspace_id='+encodeURIComponent(c.workspaceId)).then(function(r){
+    var pendingIds={};
+    c.messagesPending.forEach(function(p){ pendingIds[p.id]=1; });
+    var arr=messagesArr();
+    (r.messages||[]).forEach(function(remote){
+      if(pendingIds[remote.id]) return;
+      var idx=-1;
+      for(var i=0;i<arr.length;i++){ if(arr[i].id===remote.id){ idx=i; break; } }
+      if(idx>-1) arr[idx]=remote; else arr.unshift(remote);
+      c.messagesSnapshot[remote.id]=hashMessage(remote);
+    });
+    c.messagesLastSync=new Date().toISOString().slice(0,16).replace('T',' ');
+    L.save();
+  });
+}
+window.addEventListener('online',function(){ flushMessages(); });
+
+/* ---------------------------------------------------------
+   Templates (Phase 6 Communications). sp().templates — new bucket.
+   --------------------------------------------------------- */
+function hashTemplate(x){
+  var s=JSON.stringify(x);
+  var h=5381;
+  for(var i=0;i<s.length;i+=7) h=((h<<5)+h+s.charCodeAt(i))|0;
+  return String(h)+':'+s.length;
+}
+function templatesArr(){
+  return (window.LDOS && window.LDOS.space) ? window.LDOS.space().templates : [];
+}
+var flushingTemplates=false;
+function flushTemplates(){
+  if(flushingTemplates||!ready()) return Promise.resolve();
+  var c=cfg();
+  if(!c.templatesPending.length) return Promise.resolve();
+  flushingTemplates=true;
+  var item=c.templatesPending[0];
+  var task;
+  if(item.op==='delete'){
+    task=authedFetch('/v1/templates/'+encodeURIComponent(item.id),{method:'DELETE'});
+  } else {
+    var payload=Object.assign({},item.payload,{workspace_id:c.workspaceId});
+    task=authedFetch('/v1/templates/'+encodeURIComponent(item.id),{method:'PUT',body:payload})
+      .catch(function(){ return authedFetch('/v1/templates',{method:'POST',body:payload}); });
+  }
+  return task.then(function(){
+    c.templatesPending.shift();
+    if(item.op==='delete') delete c.templatesSnapshot[item.id];
+    else c.templatesSnapshot[item.id]=hashTemplate(item.payload);
+    flushingTemplates=false;
+    L.save();
+    return flushTemplates();
+  }).catch(function(){ flushingTemplates=false; });
+}
+function diffAndQueueTemplates(){
+  if(!ready()) return;
+  var c=cfg();
+  var seen={};
+  templatesArr().forEach(function(x){
+    seen[x.id]=1;
+    var h=hashTemplate(x);
+    if(c.templatesSnapshot[x.id]!==h){
+      c.templatesPending=c.templatesPending.filter(function(p){ return p.id!==x.id; });
+      c.templatesPending.push({op:'upsert',id:x.id,payload:x,ts:Date.now()});
+    }
+  });
+  Object.keys(c.templatesSnapshot).forEach(function(id){
+    if(!seen[id]){
+      c.templatesPending=c.templatesPending.filter(function(p){ return p.id!==id; });
+      c.templatesPending.push({op:'delete',id:id,payload:null,ts:Date.now()});
+    }
+  });
+  flushTemplates();
+}
+function pullTemplates(){
+  if(!ready()) return Promise.resolve();
+  var c=cfg();
+  return authedFetch('/v1/templates?workspace_id='+encodeURIComponent(c.workspaceId)).then(function(r){
+    var pendingIds={};
+    c.templatesPending.forEach(function(p){ pendingIds[p.id]=1; });
+    var arr=templatesArr();
+    (r.templates||[]).forEach(function(remote){
+      if(pendingIds[remote.id]) return;
+      var idx=-1;
+      for(var i=0;i<arr.length;i++){ if(arr[i].id===remote.id){ idx=i; break; } }
+      if(idx>-1) arr[idx]=remote; else arr.unshift(remote);
+      c.templatesSnapshot[remote.id]=hashTemplate(remote);
+    });
+    c.templatesLastSync=new Date().toISOString().slice(0,16).replace('T',' ');
+    L.save();
+  });
+}
+window.addEventListener('online',function(){ flushTemplates(); });
+
+/* ---------------------------------------------------------
+   Follow-ups (Phase 6 Communications). sp().followUps — new bucket.
+   The Worker's Cron Trigger reads these server-side independently;
+   this lane just keeps the local copy in sync with whatever the CRM
+   (or the AI) has scheduled.
+   --------------------------------------------------------- */
+function hashFollowUp(x){
+  var s=JSON.stringify(x);
+  var h=5381;
+  for(var i=0;i<s.length;i+=7) h=((h<<5)+h+s.charCodeAt(i))|0;
+  return String(h)+':'+s.length;
+}
+function followUpsArr(){
+  return (window.LDOS && window.LDOS.space) ? window.LDOS.space().followUps : [];
+}
+var flushingFollowUps=false;
+function flushFollowUps(){
+  if(flushingFollowUps||!ready()) return Promise.resolve();
+  var c=cfg();
+  if(!c.followUpsPending.length) return Promise.resolve();
+  flushingFollowUps=true;
+  var item=c.followUpsPending[0];
+  var task;
+  if(item.op==='delete'){
+    task=authedFetch('/v1/follow-ups/'+encodeURIComponent(item.id),{method:'DELETE'});
+  } else {
+    var payload=Object.assign({},item.payload,{workspace_id:c.workspaceId});
+    task=authedFetch('/v1/follow-ups/'+encodeURIComponent(item.id),{method:'PUT',body:payload})
+      .catch(function(){ return authedFetch('/v1/follow-ups',{method:'POST',body:payload}); });
+  }
+  return task.then(function(){
+    c.followUpsPending.shift();
+    if(item.op==='delete') delete c.followUpsSnapshot[item.id];
+    else c.followUpsSnapshot[item.id]=hashFollowUp(item.payload);
+    flushingFollowUps=false;
+    L.save();
+    return flushFollowUps();
+  }).catch(function(){ flushingFollowUps=false; });
+}
+function diffAndQueueFollowUps(){
+  if(!ready()) return;
+  var c=cfg();
+  var seen={};
+  followUpsArr().forEach(function(x){
+    seen[x.id]=1;
+    var h=hashFollowUp(x);
+    if(c.followUpsSnapshot[x.id]!==h){
+      c.followUpsPending=c.followUpsPending.filter(function(p){ return p.id!==x.id; });
+      c.followUpsPending.push({op:'upsert',id:x.id,payload:x,ts:Date.now()});
+    }
+  });
+  Object.keys(c.followUpsSnapshot).forEach(function(id){
+    if(!seen[id]){
+      c.followUpsPending=c.followUpsPending.filter(function(p){ return p.id!==id; });
+      c.followUpsPending.push({op:'delete',id:id,payload:null,ts:Date.now()});
+    }
+  });
+  flushFollowUps();
+}
+function pullFollowUps(){
+  if(!ready()) return Promise.resolve();
+  var c=cfg();
+  return authedFetch('/v1/follow-ups?workspace_id='+encodeURIComponent(c.workspaceId)).then(function(r){
+    var pendingIds={};
+    c.followUpsPending.forEach(function(p){ pendingIds[p.id]=1; });
+    var arr=followUpsArr();
+    (r.follow_ups||[]).forEach(function(remote){
+      if(pendingIds[remote.id]) return;
+      var idx=-1;
+      for(var i=0;i<arr.length;i++){ if(arr[i].id===remote.id){ idx=i; break; } }
+      if(idx>-1) arr[idx]=remote; else arr.unshift(remote);
+      c.followUpsSnapshot[remote.id]=hashFollowUp(remote);
+    });
+    c.followUpsLastSync=new Date().toISOString().slice(0,16).replace('T',' ');
+    L.save();
+  });
+}
+window.addEventListener('online',function(){ flushFollowUps(); });
+
 window.LDCLOUD={
   cfg:cfg, ready:ready, requestLink:requestLink, connectWithToken:connectWithToken,
   disconnect:disconnect, diffAndQueue:diffAndQueue, pull:pull, flush:flush,
   diffAndQueueContacts:diffAndQueueContacts, pullContacts:pullContacts, flushContacts:flushContacts,
   diffAndQueueTasks:diffAndQueueTasks, pullTasks:pullTasks, flushTasks:flushTasks,
   diffAndQueueCalEvents:diffAndQueueCalEvents, pullCalEvents:pullCalEvents, flushCalEvents:flushCalEvents,
-  diffAndQueueAppts:diffAndQueueAppts, pullAppts:pullAppts, flushAppts:flushAppts
+  diffAndQueueAppts:diffAndQueueAppts, pullAppts:pullAppts, flushAppts:flushAppts,
+  diffAndQueueConversations:diffAndQueueConversations, pullConversations:pullConversations, flushConversations:flushConversations,
+  diffAndQueueMessages:diffAndQueueMessages, pullMessages:pullMessages, flushMessages:flushMessages,
+  diffAndQueueTemplates:diffAndQueueTemplates, pullTemplates:pullTemplates, flushTemplates:flushTemplates,
+  diffAndQueueFollowUps:diffAndQueueFollowUps, pullFollowUps:pullFollowUps, flushFollowUps:flushFollowUps
 };
 
 /* the same chain-of-responsibility every other module here already uses —
    save() itself is never touched, only wrapped */
 var _saveCloud=L.save;
-L.save=function(){ _saveCloud.apply(this,arguments); try{ diffAndQueue(); }catch(e){} try{ diffAndQueueContacts(); }catch(e){} try{ diffAndQueueTasks(); }catch(e){} try{ diffAndQueueCalEvents(); }catch(e){} try{ diffAndQueueAppts(); }catch(e){} };
+L.save=function(){ _saveCloud.apply(this,arguments); try{ diffAndQueue(); }catch(e){} try{ diffAndQueueContacts(); }catch(e){} try{ diffAndQueueTasks(); }catch(e){} try{ diffAndQueueCalEvents(); }catch(e){} try{ diffAndQueueAppts(); }catch(e){} try{ diffAndQueueConversations(); }catch(e){} try{ diffAndQueueMessages(); }catch(e){} try{ diffAndQueueTemplates(); }catch(e){} try{ diffAndQueueFollowUps(); }catch(e){} };
 })();
 
 L.render();
@@ -8170,6 +8526,10 @@ if(window.LDCLOUD&&LDCLOUD.ready()){
   try{ LDCLOUD.pullTasks().then(function(){ L.render(); }); }catch(e){}
   try{ LDCLOUD.pullCalEvents().then(function(){ L.render(); }); }catch(e){}
   try{ LDCLOUD.pullAppts().then(function(){ L.render(); }); }catch(e){}
+  try{ LDCLOUD.pullConversations().then(function(){ L.render(); }); }catch(e){}
+  try{ LDCLOUD.pullMessages().then(function(){ L.render(); }); }catch(e){}
+  try{ LDCLOUD.pullTemplates().then(function(){ L.render(); }); }catch(e){}
+  try{ LDCLOUD.pullFollowUps().then(function(){ L.render(); }); }catch(e){}
 }
 
 /* global terrain backdrop: one still frame behind every screen */
