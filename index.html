@@ -3415,6 +3415,40 @@ define('logCommunication','execute','Log a call or message that already happened
     return {id:m.id,channel:m.channel};
   });
 
+/* ---------- Phase 6: proper follow-ups (works for customers too, not
+   just leads — scheduleFollowUp above is kept exactly as-is for
+   backward compatibility with existing lead workflows) ---------- */
+define('createFollowUp','write','Schedule a follow-up for a lead or customer.',
+  {leadId:'string',customerId:'string',dueAt:'YYYY-MM-DD (required)',title:'string (required)',
+   notes:'string',channel:'call|sms|email|in-person'},
+  function(i){
+    if(!str(i.dueAt).trim()) throw new Error('dueAt is required');
+    if(!str(i.title).trim()) throw new Error('title is required');
+    var f={id:uid('fu'),leadId:str(i.leadId),customerId:str(i.customerId),
+      dueAt:str(i.dueAt),title:str(i.title),notes:str(i.notes),
+      channel:str(i.channel)||'call',status:'pending',created:L.today()};
+    sp().followUps.unshift(f);
+    return {id:f.id,title:f.title,dueAt:f.dueAt};
+  });
+
+/* ---------- Phase 6: AI receptionist escalation. Always requires human
+   attention — this is intentionally NOT auto-resolved by the AI, it
+   just makes sure nothing the AI couldn't confidently answer gets
+   silently dropped. Shows up as a follow-up so it's visible wherever
+   follow-ups already are, with no separate inbox to check. ---------- */
+define('escalateToHuman','execute','Flag something the AI could not confidently handle for a human to review.',
+  {leadId:'string',customerId:'string',question:'string (required)',aiResponse:'string',reason:'string'},
+  function(i){
+    if(!str(i.question).trim()) throw new Error('question is required');
+    var f={id:uid('fu'),leadId:str(i.leadId),customerId:str(i.customerId),
+      dueAt:L.today(),title:'Needs human response: '+str(i.question).slice(0,80),
+      notes:'Customer asked: '+str(i.question)+
+        (i.aiResponse?'\n\nAI attempted: '+str(i.aiResponse):'')+
+        (i.reason?'\n\nEscalation reason: '+str(i.reason):''),
+      channel:'system',status:'pending',escalated:true,created:L.today()};
+    sp().followUps.unshift(f);
+    return {id:f.id,flagged:true};
+  });
 /* ---------- CUSTOMER REVIEWS ---------- */
 define('sendReviewRequest','execute','Mark a review request as sent to a customer.',
   {customerId:'string (required)',channel:'sms|email',link:'string'},
@@ -4874,6 +4908,34 @@ function refreshLeadList(){
 }
 
 /* ---------- FOLLOW-UPS ---------- */
+function templatesModal(editId){
+  var tpls=window.LDOS.space().templates||[];
+  var editing=editId?tpls.filter(function(t){ return t.id===editId; })[0]:null;
+  var h='<h3>Message templates</h3><p class="lede">Reusable text for common messages. Use {{customer.firstName}}, {{business.name}}, {{appointment.date}}, {{appointment.time}}, {{service}} and they\'ll be filled in when used.</p>';
+
+  h+='<label class="field"><span>Title</span><input id="tplTitle" value="'+esc(editing?editing.title:'')+'" placeholder="Appointment Confirmation"></label>';
+  h+='<label class="field"><span>Channel</span><select id="tplChannel">'+
+    ['email','sms','call','in-person'].map(function(c){
+      return '<option value="'+c+'"'+(editing&&editing.channel===c?' selected':'')+'>'+c+'</option>';
+    }).join('')+'</select></label>';
+  h+='<label class="field"><span>Message</span><textarea id="tplBody" style="min-height:100px" placeholder="Hi {{customer.firstName}}, just confirming your appointment for {{appointment.date}} at {{appointment.time}}.">'+esc(editing?editing.body:'')+'</textarea></label>';
+  h+='<div class="foot">'+
+    (editing?'<button class="btn" data-tpldel="'+editing.id+'">Delete</button>':'')+
+    '<button class="btn" data-close>Cancel</button>'+
+    '<button class="btn pri" data-tplsave="'+(editing?editing.id:'')+'">'+(editing?'Save':'Create')+'</button></div>';
+
+  if(!editing&&tpls.length){
+    h+='<div class="sect-h" style="margin-top:18px"><h2>Existing templates</h2><span class="n">'+tpls.length+'</span></div><div class="notes">'+
+      tpls.map(function(t){
+        return '<div class="note"><div class="t">'+esc((t.channel||'email').toUpperCase())+(t.active===false?' · inactive':'')+'</div>'+
+          '<p><b>'+esc(t.title||'Untitled')+'</b><br>'+esc((t.body||'').slice(0,120))+(t.body&&t.body.length>120?'…':'')+'</p>'+
+          '<div class="acts"><button class="btn sm" data-tpledit="'+t.id+'">Edit</button>'+
+          '<button class="btn sm" data-tpldup="'+t.id+'">Duplicate</button></div></div>';
+      }).join('')+'</div>';
+  }
+  L.modal(h);
+}
+
 function vFollow(){
   var td=L.today();
   var live=DB.leads.filter(function(x){ return x.stage!=='Won'&&x.stage!=='Lost'; });
@@ -4882,12 +4944,25 @@ function vFollow(){
   var now=dated.filter(function(x){ return x.nextFollow===td; });
   var soon=dated.filter(function(x){ return x.nextFollow>td; });
   var never=live.filter(function(x){ return !x.nextFollow&&x.callStatus!=='Not called'; });
+
+  /* Phase 6: sp().followUps — works for customers as well as leads,
+     kept as its own section so the existing lead-only view above stays
+     exactly as it was */
+  var fu=(window.LDOS.space().followUps||[]).filter(function(f){ return f.status==='pending'; })
+    .sort(function(a,b){ return (a.dueAt||'')<(b.dueAt||'')?-1:1; });
+  var fuOver=fu.filter(function(f){ return f.dueAt&&f.dueAt<td; });
+  var fuToday=fu.filter(function(f){ return f.dueAt===td; });
+  var fuSoon=fu.filter(function(f){ return f.dueAt&&f.dueAt>td; });
+
   var h='<div class="wrap">';
-  if(!dated.length&&!never.length){
+  h+='<div style="display:flex;justify-content:flex-end;margin-bottom:6px">'+
+     '<button class="btn sm" data-opentpl>Message templates</button></div>';
+  if(!dated.length&&!never.length&&!fu.length){
     return h+'<div style="height:16px"></div><div class="empty"><b>Nothing scheduled</b>'+
-      'Open any lead, set a follow-up date, and it shows up here on the day.</div></div>';
+      'Open any lead or customer, set a follow-up, and it shows up here on the day.</div></div>';
   }
   h+=grp('Overdue',over,'over')+grp('Today',now,'today')+grp('Coming up',soon,'')+grp('Contacted, no date set',never,'');
+  h+=grpFu('Follow-ups — overdue',fuOver,'over')+grpFu('Follow-ups — today',fuToday,'today')+grpFu('Follow-ups — coming up',fuSoon,'');
   return h+'</div>';
 
   function grp(title,arr,cls){
@@ -4906,6 +4981,26 @@ function vFollow(){
             (x.phone?'<a class="btn" href="tel:'+esc(x.phone)+'">Call</a>':'<button class="btn" data-open="'+x.id+'">Open</button>')+
             '<button class="btn amber" data-fugen="'+x.id+'">Follow-up</button>'+
             '<button class="btn mint" data-fudone="'+x.id+'">Done</button></div></div>';
+      }).join('');
+  }
+
+  function grpFu(title,arr,cls){
+    if(!arr.length) return '';
+    return '<div class="sect-h"><h2>'+title+'</h2><span class="n">'+arr.length+'</span></div>'+
+      arr.map(function(f){
+        var who=f.customerId?(window.LDBIZ&&window.LDBIZ.findIn('customers',f.customerId)):(f.leadId?L.find(f.leadId):null);
+        var whoName=who?(who.name||who.business||'Untitled'):'';
+        return '<div class="fu '+cls+(f.escalated?' escalated':'')+'"><h4>'+esc(f.title||'Follow up')+
+          (f.escalated?' <span class="pill bad">Needs you</span>':'')+'</h4>'+
+          '<div class="when" style="color:'+(cls==='over'?'var(--bad)':cls==='today'?'var(--high)':'var(--ink-3)')+'">'+
+          esc(L.relDay(f.dueAt))+' · '+esc(L.fmtDate(f.dueAt))+
+          (whoName?' · '+esc(whoName):'')+'</div>'+
+          (f.notes?'<div class="lastnote">'+esc(f.notes)+'</div>':'')+
+          '<div class="acts">'+
+            (f.customerId?'<button class="btn" data-cust="'+esc(f.customerId)+'">Open customer</button>':
+             f.leadId?'<button class="btn" data-open="'+esc(f.leadId)+'">Open lead</button>':'')+
+            '<button class="btn" data-fucancel="'+f.id+'">Cancel</button>'+
+            '<button class="btn mint" data-fucomplete="'+f.id+'">Done</button></div></div>';
       }).join('');
   }
 }
@@ -5223,6 +5318,7 @@ window.LD.go=go;
 window.LD.leadRow=leadRow;
 window.LD.opts=opts;
 window.LD.refreshLeadList=refreshLeadList;
+window.LD.templatesModal=templatesModal;
 window.LD.recolorMtn=function(){
   if(headMtn) headMtn.recolor();
   if(window.LD.bgMtn) window.LD.bgMtn.recolor();
@@ -7025,7 +7121,7 @@ function setDeep(obj,path,val){
 }
 
 document.addEventListener('click',function(e){
-  var el=e.target.closest('[data-go],[data-open],[data-act],[data-stat],[data-gen],[data-quick],[data-move],[data-fugen],[data-fudone],[data-prov],[data-settheme],[data-delind],[data-addnote],[data-delnote],[data-addammo],[data-delammo],[data-copyammo],[data-close]');
+  var el=e.target.closest('[data-go],[data-open],[data-act],[data-stat],[data-gen],[data-quick],[data-move],[data-fugen],[data-fudone],[data-fucomplete],[data-fucancel],[data-opentpl],[data-tplsave],[data-tpldel],[data-tpledit],[data-tpldup],[data-prov],[data-settheme],[data-delind],[data-addnote],[data-delnote],[data-addammo],[data-delammo],[data-copyammo],[data-close]');
   if(!el) return;
   var d=el.dataset;
 
@@ -7074,6 +7170,47 @@ document.addEventListener('click',function(e){
     fx.nextFollow='';
     if(fx.stage==='New') fx.stage='Contacted';
     L.save(); L.render(); L.toast('Marked done'); return;
+  }
+  if(d.fucomplete){
+    var fu2=(window.LDOS.space().followUps||[]).filter(function(x){ return x.id===d.fucomplete; })[0];
+    if(fu2){ fu2.status='completed'; fu2.completedAt=new Date().toISOString(); L.save(); L.render(); L.toast('Follow-up completed'); }
+    return;
+  }
+  if(d.fucancel){
+    var fu3=(window.LDOS.space().followUps||[]).filter(function(x){ return x.id===d.fucancel; })[0];
+    if(fu3){ fu3.status='cancelled'; L.save(); L.render(); L.toast('Follow-up cancelled'); }
+    return;
+  }
+  if(d.opentpl!==undefined){ L.templatesModal(); return; }
+  if(d.tplsave!==undefined){
+    var titleEl=$('#tplTitle'), chanEl=$('#tplChannel'), bodyEl=$('#tplBody');
+    var titleVal=titleEl?titleEl.value.trim():'';
+    if(!titleVal){ L.toast('Give it a title first'); return; }
+    if(d.tplsave){
+      var existing=(window.LDOS.space().templates||[]).filter(function(t){ return t.id===d.tplsave; })[0];
+      if(existing){
+        existing.title=titleVal; existing.channel=chanEl?chanEl.value:'email';
+        existing.body=bodyEl?bodyEl.value:'';
+      }
+    } else {
+      window.LDOS.space().templates.unshift({id:L.uid(),title:titleVal,channel:chanEl?chanEl.value:'email',
+        body:bodyEl?bodyEl.value:'',active:true,created:L.today()});
+    }
+    L.save(); closeModal(); L.render(); L.toast('Saved'); return;
+  }
+  if(d.tpldel){
+    window.LDOS.space().templates=(window.LDOS.space().templates||[]).filter(function(t){ return t.id!==d.tpldel; });
+    L.save(); closeModal(); L.render(); L.toast('Deleted'); return;
+  }
+  if(d.tpledit){ closeModal(); L.templatesModal(d.tpledit); return; }
+  if(d.tpldup){
+    var src=(window.LDOS.space().templates||[]).filter(function(t){ return t.id===d.tpldup; })[0];
+    if(src){
+      window.LDOS.space().templates.unshift({id:L.uid(),title:src.title+' (copy)',channel:src.channel,
+        body:src.body,active:true,created:L.today()});
+      L.save(); closeModal(); L.templatesModal(); L.toast('Duplicated');
+    }
+    return;
   }
 
   if(d.prov){
@@ -10147,6 +10284,7 @@ window.LDH={vHealth:vHealth,vFactory:vFactory,vPromptLib:vPromptLib,vLayers:vLay
 var L=window.LD, OS=window.LDOS, BIZ=window.LDBIZ, F=window.LDF, DB=L.DB,
     state=L.state, $=L.$, $$=L.$$, esc=L.esc;
 function sp(){ return OS.space(); }
+var commsDashState={q:'',channel:'',status:''};
 function n2(v){ return Number(v)||0; }
 
 /* page shapes:
@@ -10177,7 +10315,8 @@ var SECTIONS=[
   {id:'calendar',label:'Calendar',view:'cal',seg:['cal','cal']},
   {id:'tasks',label:'Tasks',view:'cal',seg:['cal','task']},
   {id:'appointments',label:'Appointments',custom:'appointments'},
-  {id:'followups',label:'Follow-Ups',view:'follow'}
+  {id:'followups',label:'Follow-Ups',view:'follow'},
+  {id:'communications',label:'Communications',custom:'communications'}
 ]},
 {id:'money',icon:'◇',label:'Money',desc:'Spending, revenue and savings',
  ai:'Where am I wasting money?',pages:[
@@ -10486,6 +10625,72 @@ var CUSTOM={
     }
   },
 
+  communications:function(){
+    var s=sp(), fi=commsDashState;
+    var all=(s.comms||[]).map(function(m){
+      var who=m.customerId?BIZ.findIn('customers',m.customerId):(m.leadId?L.find(m.leadId):null);
+      return {rec:m,whoName:who?(who.name||who.business||'Untitled'):'(no customer/lead)',
+        whoId:m.customerId||m.leadId||'',isCustomer:!!m.customerId};
+    }).sort(function(a,b){ return (b.rec.t||b.rec.created||'')<(a.rec.t||a.rec.created||'')?-1:1; });
+
+    var q=(fi.q||'').toLowerCase();
+    var filtered=all.filter(function(x){
+      if(fi.channel&&x.rec.channel!==fi.channel) return false;
+      if(fi.status&&(x.rec.status||'logged')!==fi.status) return false;
+      if(q&&x.whoName.toLowerCase().indexOf(q)<0&&(x.rec.body||'').toLowerCase().indexOf(q)<0) return false;
+      return true;
+    });
+
+    var openFu=(s.followUps||[]).filter(function(f){ return f.status==='pending'; });
+    var fuByWho={};
+    openFu.forEach(function(f){ var k=f.customerId||f.leadId; if(k) fuByWho[k]=(fuByWho[k]||0)+1; });
+
+    var channels=['call','sms','email','in-person'];
+    var statuses=['draft','scheduled','logged','sent','delivered','failed','not_configured'];
+
+    var h='<div class="wrap">';
+    h+='<div class="stats" style="grid-template-columns:repeat(3,1fr)">'+
+      '<div class="stat"><b>'+all.length+'</b><span>Total communications</span></div>'+
+      '<div class="stat"><b>'+openFu.length+'</b><span>Open follow-ups</span></div>'+
+      '<div class="stat"><b>'+all.filter(function(x){ return x.rec.status==='failed'; }).length+'</b><span>Failed sends</span></div></div>';
+
+    h+='<div class="search" style="margin-top:14px"><input id="commsSearch" type="search" placeholder="Search customer, lead or message" value="'+esc(fi.q||'')+'"></div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">';
+    h+='<select id="commsChanFilt"><option value="">All channels</option>'+
+      channels.map(function(c){ return '<option value="'+c+'"'+(fi.channel===c?' selected':'')+'>'+c.toUpperCase()+'</option>'; }).join('')+'</select>';
+    h+='<select id="commsStatFilt"><option value="">All statuses</option>'+
+      statuses.map(function(st){ return '<option value="'+st+'"'+(fi.status===st?' selected':'')+'>'+st.toUpperCase()+'</option>'; }).join('')+'</select>';
+    if(fi.q||fi.channel||fi.status) h+='<button class="btn sm" data-commsclear>Clear filters</button>';
+    h+='</div>';
+
+    if(!filtered.length){
+      h+=empty('Nothing here',all.length?'No communications match these filters.':'Log a call or draft a message from any customer to see it here.');
+      return h+'</div>';
+    }
+
+    h+='<div class="notes">'+filtered.slice(0,60).map(function(x){
+      var m=x.rec;
+      var status=m.status||'logged';
+      var pill=status==='sent'||status==='delivered'||status==='logged'?'good':
+        status==='draft'||status==='scheduled'?'med':
+        status==='failed'?'bad':'flat';
+      var dirLabel=m.direction==='inbound'?'From them':'From you';
+      var fuCount=fuByWho[x.whoId]||0;
+      return '<div class="note"><div class="t">'+esc(L.fmtDate((m.t||m.created||'').slice(0,10)))+
+        ' · '+esc((m.channel||'call').toUpperCase())+' · '+esc(dirLabel)+
+        ' · <span class="pill '+pill+'">'+esc(status.toUpperCase())+'</span>'+
+        (fuCount?' · <span class="pill amber">'+fuCount+' follow-up'+(fuCount>1?'s':'')+'</span>':'')+'</div>'+
+        '<p><b>'+esc(x.whoName)+'</b>'+(m.body?'<br>'+esc((m.body||'').slice(0,160))+((m.body||'').length>160?'…':''):'')+'</p>'+
+        '<div class="acts">'+
+          (x.isCustomer?'<button class="btn sm" data-cust="'+esc(x.whoId)+'">Open customer</button>':
+           x.whoId?'<button class="btn sm" data-open="'+esc(x.whoId)+'">Open lead</button>':'')+
+          '<button class="btn sm" data-commsdraft="'+esc(x.whoId)+'" data-commsdraftiscust="'+(x.isCustomer?'1':'0')+'">Draft response</button>'+
+          '<button class="btn sm" data-commsfu="'+esc(x.whoId)+'" data-commsfuiscust="'+(x.isCustomer?'1':'0')+'">Create follow-up</button>'+
+        '</div></div>';
+    }).join('')+'</div>';
+    return h+'</div>';
+  },
+
   vendors:function(){
     var s=sp(), g={};
     s.expenses.forEach(function(e){
@@ -10706,6 +10911,76 @@ document.addEventListener('click',function(e){
   if(!el) return;
   var parts=String(el.dataset.goto).split('.');
   goto(parts[0],parts[1]);
+},false);
+
+/* ---------- Communications Dashboard events ---------- */
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-commsclear],[data-commsdraft],[data-commsfu],[data-cdsend],[data-cdfusave],[data-close]');
+  if(!el) return;
+  var d=el.dataset;
+  if(d.commsclear!==undefined){
+    commsDashState={q:'',channel:'',status:''};
+    L.render();
+    return;
+  }
+  if(d.commsdraft!==undefined){
+    var wid=d.commsdraft, isCust=d.commsdraftiscust==='1';
+    var who=isCust?BIZ.findIn('customers',wid):L.find(wid);
+    var whoName=who?(who.name||who.business||'this person'):'this person';
+    L.modal('<h3>Draft a response</h3><p class="lede">To '+esc(whoName)+'</p>'+
+      '<label class="field"><span>Channel</span><select id="cdChannel">'+
+        ['email','sms'].map(function(c){ return '<option value="'+c+'">'+c.toUpperCase()+'</option>'; }).join('')+
+      '</select></label>'+
+      '<label class="field"><span>Message</span><textarea id="cdBody" style="min-height:100px" placeholder="Type the message..."></textarea></label>'+
+      '<div class="foot"><button class="btn" data-close>Cancel</button>'+
+      '<button class="btn pri" data-cdsend="'+esc(wid)+'" data-cdiscust="'+(isCust?'1':'0')+'">Save draft</button></div>');
+    return;
+  }
+  if(d.cdsend!==undefined){
+    var bodyEl=$('#cdBody'), chanEl=$('#cdChannel');
+    var bodyVal=bodyEl?bodyEl.value.trim():'';
+    if(!bodyVal){ L.toast('Write something first'); return; }
+    var params={body:bodyVal,channel:chanEl?chanEl.value:'email'};
+    if(d.cdiscust==='1') params.customerId=d.cdsend; else params.leadId=d.cdsend;
+    OS.runAction('draftMessage',params);
+    L.save(); L.closeModal(); L.render(); L.toast('Draft saved');
+    return;
+  }
+  if(d.commsfu!==undefined){
+    var wid2=d.commsfu, isCust2=d.commsfuiscust==='1';
+    var who2=isCust2?BIZ.findIn('customers',wid2):L.find(wid2);
+    var whoName2=who2?(who2.name||who2.business||'this person'):'this person';
+    var tmrw=new Date(Date.now()+86400000).toISOString().slice(0,10);
+    L.modal('<h3>Create a follow-up</h3><p class="lede">For '+esc(whoName2)+'</p>'+
+      '<label class="field"><span>Title</span><input id="cdFuTitle" value="Follow up with '+esc(whoName2)+'"></label>'+
+      '<label class="field"><span>Due date</span><input id="cdFuDate" type="date" value="'+tmrw+'"></label>'+
+      '<label class="field"><span>Notes</span><textarea id="cdFuNotes" placeholder="Optional"></textarea></label>'+
+      '<div class="foot"><button class="btn" data-close>Cancel</button>'+
+      '<button class="btn pri" data-cdfusave="'+esc(wid2)+'" data-cdfuiscust="'+(isCust2?'1':'0')+'">Create</button></div>');
+    return;
+  }
+  if(d.cdfusave!==undefined){
+    var tEl=$('#cdFuTitle'), dEl=$('#cdFuDate'), nEl=$('#cdFuNotes');
+    var titleVal=tEl?tEl.value.trim():'';
+    var dueVal=dEl?dEl.value:'';
+    if(!titleVal||!dueVal){ L.toast('Title and date are required'); return; }
+    var fparams={title:titleVal,dueAt:dueVal,notes:nEl?nEl.value:''};
+    if(d.cdfuiscust==='1') fparams.customerId=d.cdfusave; else fparams.leadId=d.cdfusave;
+    OS.runAction('createFollowUp',fparams);
+    L.save(); L.closeModal(); L.render(); L.toast('Follow-up created');
+    return;
+  }
+  if(d.close!==undefined){ L.closeModal(); return; }
+},false);
+
+document.addEventListener('input',function(e){
+  var el=e.target;
+  if(el.id==='commsSearch'){ commsDashState.q=el.value; L.render(); }
+},false);
+document.addEventListener('change',function(e){
+  var el=e.target;
+  if(el.id==='commsChanFilt'){ commsDashState.channel=el.value; L.render(); }
+  if(el.id==='commsStatFilt'){ commsDashState.status=el.value; L.render(); }
 },false);
 
 /* the app already rendered once before this module loaded — take over now */
