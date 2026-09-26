@@ -111,7 +111,7 @@
 
       fetch(API_BASE + "/v1/public/leads", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Intake-Key": INTAKE_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       })
         .then(function (r) {
