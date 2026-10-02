@@ -228,6 +228,7 @@ html[data-theme="light"] #terrainBg:after{opacity:.08;mix-blend-mode:multiply;fi
   background:color-mix(in srgb,var(--surface) 70%,transparent);border:1px solid var(--line);
   animation:nmRise .9s 1s var(--ease) both}
 #splash .skip .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent-line);animation:nmPulse 2s ease-out infinite}
+@media(hover:none){#splash .skip kbd{display:none}}
 #splash .skip kbd{font:inherit;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;letter-spacing:.06em}
 @keyframes nmWord{from{opacity:0;transform:translate3d(0,14px,0);letter-spacing:.24em}to{opacity:1;transform:none}}
 @keyframes nmRise{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
@@ -466,7 +467,7 @@ pre.plain{white-space:pre-wrap;word-wrap:break-word;font-family:var(--font);font
 
 /* ---------- forms ---------- */
 :where(select,textarea,input:not([type=checkbox],[type=radio],[type=file],[type=range],[type=color],[type=hidden],[type=submit],[type=button])){
-  min-height:36px;padding:7px 11px;font-size:13.5px;color:var(--ink);
+  min-width:0;min-height:36px;padding:7px 11px;font-size:13.5px;color:var(--ink);
   background-color:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-m);
   transition:border-color var(--t) ease,box-shadow var(--t) ease}
 :where(select,textarea,input):focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -884,7 +885,7 @@ button.stat:hover:after{opacity:1;transform:none;background:var(--accent)}
 .notes{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .note{position:relative;background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r-m);padding:11px 13px;transition:border-color var(--t) ease}
 .note:hover{border-color:var(--line)}
-.note .t{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.04em;color:var(--ink-3)}
+.note .t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:4px;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.04em;color:var(--ink-3)}
 .note .t button{margin-left:auto;width:22px;height:22px;border-radius:5px;color:var(--ink-4);font-size:15px;line-height:1}
 .note .t button:hover{color:var(--bad);background:var(--bad-soft)}
 .note p{font-size:13.5px;line-height:1.55;color:var(--ink)}
