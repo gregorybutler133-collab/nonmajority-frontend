@@ -6661,6 +6661,14 @@ function renderSheet(){
       (x.email?'<a class="btn" href="mailto:'+esc(x.email)+'">Email</a>':'<button class="btn" disabled>No email</button>')+
     '</div></div>';
 
+  /* client intake details — website intake writes this into lead.message; nothing else touches it */
+  if(x.message && String(x.message).trim()){
+    h+='<div class="card"><b style="font-size:16px">Client Intake Details</b>'+
+       '<div style="max-height:420px;overflow-y:auto;margin-top:10px;background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r-m);padding:14px 16px">'+
+       '<pre class="plain" style="margin:0">'+esc(x.message)+'</pre>'+
+       '</div></div>';
+  }
+
   /* why it's a good lead */
   h+='<div class="card"><b style="font-size:16px">Why this is a good lead</b>'+
      '<ul class="reasons" style="margin-top:8px">'+
