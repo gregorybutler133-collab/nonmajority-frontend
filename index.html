@@ -9705,6 +9705,7 @@ function pull(){
     c.pending.forEach(function(p){ pendingIds[p.id]=1; });
     (r.leads||[]).forEach(function(remote){
       if(pendingIds[remote.id]) return; /* an unsynced local edit wins for now */
+      remote.ammo=remote.ammo||[]; remote.notes=remote.notes||[]; /* website-intake leads arrive without these */
       var idx=-1;
       for(var i=0;i<DB.leads.length;i++){ if(DB.leads[i].id===remote.id){ idx=i; break; } }
       if(idx>-1) DB.leads[idx]=remote; else DB.leads.unshift(remote);
