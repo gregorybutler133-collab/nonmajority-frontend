@@ -179,14 +179,15 @@ table,.tbl,.kv,.stat b,.num,.amt{font-variant-numeric:tabular-nums}
    ATMOSPHERE — animated ridge + mist backdrop (see NMATM script)
    ============================================================ */
 #terrainBg{
-  position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:strict;
   background:
     radial-gradient(120% 60% at 72% 100%,rgba(var(--atm-glow),calc(var(--atm-glow-a)*.9)),transparent 60%),
     linear-gradient(180deg,var(--atm-sky0) 0%,var(--atm-sky0) 38%,var(--atm-sky1) 100%);
   opacity:0;transition:opacity 1.2s var(--ease);
 }
 #terrainBg.in{opacity:1}
-#terrainBg canvas{position:absolute;left:0;right:0;bottom:0;width:100%;height:64vh;height:64dvh;display:block}
+/* lvh, not dvh: the phone URL bar showing/hiding mid-scroll must not resize (and wipe) the canvas */
+#terrainBg canvas{position:absolute;left:0;right:0;bottom:0;width:100%;height:64vh;height:64lvh;display:block}
 #terrainBg .veil{
   position:absolute;inset:0;
   background:
@@ -194,10 +195,13 @@ table,.tbl,.kv,.stat b,.num,.amt{font-variant-numeric:tabular-nums}
 }
 /* film grain: printed texture, felt rather than seen */
 #terrainBg:after{
-  content:"";position:absolute;inset:-50%;opacity:.05;mix-blend-mode:overlay;pointer-events:none;
+  /* plain alpha, no blend mode or overscan: a blended full-screen layer had to be
+     recomposited against the live canvas on every scroll frame */
+  content:"";position:absolute;inset:0;opacity:.028;pointer-events:none;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
 }
-html[data-theme="light"] #terrainBg:after{opacity:.08;mix-blend-mode:multiply;filter:invert(1)}
+html[data-theme="light"] #terrainBg:after{opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
 .app{position:relative;z-index:1}
 
 /* ---------- splash ---------- */
@@ -2702,7 +2706,7 @@ function scene(cv,opts){
   var ctx=cv&&cv.getContext?cv.getContext('2d'):null;
   if(!ctx) return {stop:function(){},recolor:function(){},redraw:function(){}};
   var LAYERS=opts.layers||6, STEP=4, FPS=opts.fps||30;
-  var W=0,H=0,DPR=1,raf=0,dead=false,last=0,t0=0,held=false;
+  var W=0,H=0,DPR=1,raf=0,dead=false,last=0,t0=0,held=false,clock=0,rzq=0,scrollUntil=0;
   var still=REDUCED||!!opts.still;
   var col={}, layers=[], mist=null, dust=[], grads=[];
   var px=0,py=0,tx=0,ty=0;
@@ -2745,14 +2749,20 @@ function scene(cv,opts){
     var r=rng(7);
     for(var j=0;j<(col.dark?34:0);j++) dust.push({x:r()*W,y:H*(0.25+r()*0.75),v:2+r()*5,a:0.12+r()*0.3,p:r()*6.28,s:r()<0.2?1.5:1});
   }
+  /* Assigning canvas.width/height wipes the bitmap, so only do it when the
+     pixel size really changes — and the caller repaints in the same frame. */
   function fit(){
     var r=cv.getBoundingClientRect();
-    W=Math.max(320,r.width); H=Math.max(160,r.height);
-    DPR=Math.min(window.devicePixelRatio||1,1.5);
-    if(W*H*DPR*DPR>2.6e6) DPR=Math.max(0.75,Math.sqrt(2.6e6/(W*H)));
-    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+    var w=Math.max(320,r.width), h=Math.max(160,r.height);
+    var dpr=Math.min(window.devicePixelRatio||1,1.5);
+    if(w*h*dpr*dpr>2.6e6) dpr=Math.max(0.75,Math.sqrt(2.6e6/(w*h)));
+    var pw=Math.round(w*dpr), ph=Math.round(h*dpr);
+    if(pw===cv.width&&ph===cv.height&&layers.length) return false;
+    W=w; H=h; DPR=dpr;
+    cv.width=pw; cv.height=ph;
     ctx.setTransform(DPR,0,0,DPR,0,0);
     build();
+    return true;
   }
 
   function draw(sec){
@@ -2806,29 +2816,42 @@ function scene(cv,opts){
     }
   }
 
+  /* The scene runs on its own clock, advanced only by frames actually drawn
+     (each step capped), so pausing never makes the range jump forward. */
+  function sceneTime(){ return still?99:clock/1000; }
   function frame(now){
     if(dead) return;
     raf=requestAnimationFrame(frame);
-    if(document.hidden||held) return;
-    if(now-last<1000/FPS-2) return;
-    last=now;
-    draw((now-t0)/1000);
+    var dt=last?now-last:0;
+    if(document.hidden||held){ last=now; return; }
+    /* While the page is scrolling the backdrop holds its last frame: a canvas
+       repaint forces every backdrop-filter surface above it (top bar, rail,
+       tabs, workspace bar) to re-sample mid-scroll, which is what flickered. */
+    if(now<scrollUntil){ last=now; return; }
+    if(dt<1000/FPS-2&&last) return;
+    last=now; clock+=Math.min(dt,50);
+    draw(sceneTime());
   }
-  function onResize(){ if(dead) return; fit(); if(still) draw(intro?99:0); }
+  function onScroll(){ scrollUntil=performance.now()+160; }
+  function onResize(){
+    if(dead||rzq) return;
+    rzq=requestAnimationFrame(function(){ rzq=0; if(dead) return; if(fit()) draw(sceneTime()); });
+  }
   function onMove(e){ tx=(e.clientX/Math.max(1,window.innerWidth)-0.5)*2; ty=(e.clientY/Math.max(1,window.innerHeight)-0.5); }
 
   readColors(); fit();
   t0=(window.performance&&performance.now)?performance.now():Date.now();
   window.addEventListener('resize',onResize);
+  if(!still) document.addEventListener('scroll',onScroll,{passive:true,capture:true});
   if(still){ draw(99); }
   else{
     if(opts.parallax&&window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches) window.addEventListener('pointermove',onMove,{passive:true});
     raf=requestAnimationFrame(frame);
   }
   return {
-    stop:function(){ dead=true; cancelAnimationFrame(raf); window.removeEventListener('resize',onResize); window.removeEventListener('pointermove',onMove); },
-    recolor:function(){ if(dead) return; readColors(); build(); if(still) draw(99); },
-    redraw:function(){ if(!dead) draw(still?99:((performance.now()-t0)/1000)); },
+    stop:function(){ dead=true; cancelAnimationFrame(raf); cancelAnimationFrame(rzq); document.removeEventListener('scroll',onScroll,true); window.removeEventListener('resize',onResize); window.removeEventListener('pointermove',onMove); },
+    recolor:function(){ if(dead) return; readColors(); build(); draw(sceneTime()); },
+    redraw:function(){ if(!dead) draw(sceneTime()); },
     hold:function(on){ held=!!on; }
   };
 }
@@ -9268,7 +9291,7 @@ if(window.IntersectionObserver&&!(window.LDV&&window.LDV.REDUCED)){
     entries.forEach(function(en){
       if(en.isIntersecting){ en.target.classList.add('in'); _io.unobserve(en.target); }
     });
-  },{rootMargin:'0px 0px 0px 0px',threshold:0.01});
+  },{rootMargin:'100% 0px 100% 0px',threshold:0});
 }
 var _rvT=null;
 L.revealScan=function(){
