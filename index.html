@@ -6786,7 +6786,7 @@ function crmLines(x){
   p('Business name',x.business); p('Industry',x.industry); p('Location',[x.city,x.state].filter(Boolean).join(', '));
   p('Owner',x.owner);
   p('Website status (as recorded in the CRM)',x.web&&x.web!=='unknown'?L.labelOf(L.WEB,x.web):'not checked');
-  p('Website URL',x.webUrl);
+  p('Website URL',x.webUrl||x.website);
   p('Online booking status (as recorded in the CRM)',x.book&&x.book!=='unknown'?L.labelOf(L.BOOK,x.book):'not checked');
   p('Booking URL',x.bookUrl);
   p('Google rating (as recorded in the CRM)',x.rating); p('Number of reviews (as recorded in the CRM)',x.reviews);
@@ -6834,14 +6834,15 @@ function gatherSources(x){
   if((x.notes||[]).length) src.push({id:'notes',label:'Your notes on this lead',status:'used',text:x.notes.slice(0,10).map(function(n){ return '['+n.t+'] '+n.text; }).join('\n')});
   if(dm.thread.length) src.push({id:'dm',label:'DM conversation logged here',status:'used',text:dm.thread.slice(-16).map(function(m){ return (m.who==='them'?'THEM: ':'ME: ')+m.text; }).join('\n')});
   if(input.text&&input.text.trim()) src.push({id:'pasted',label:'Pasted by you'+(input.from?' — '+input.from:''),status:'used',text:clipS(input.text,4000)});
-  var site=x.webUrl?{id:'site',label:'Website '+x.webUrl,status:'pending',text:''}:null;
+  var siteUrl=x.webUrl||x.website||'';
+  var site=siteUrl?{id:'site',label:'Website '+siteUrl,status:'pending',text:''}:null;
   if(x.instagram) src.push({id:'instagram',label:'Instagram '+x.instagram,status:'not accessed',
     note:'The CRM cannot open Instagram. Paste the bio, link in bio or recent posts above to have them used.'});
   if(x.facebook) src.push({id:'facebook',label:'Facebook page',status:'not accessed',note:'The CRM cannot open Facebook. Paste anything relevant above.'});
   if(x.rating||x.reviews) src.push({id:'reviews',label:'Live Google reviews',status:'not accessed',
     note:'Only the rating and count stored on this lead are used. Review text was not read.'});
   if(!site) return Promise.resolve(src);
-  return readSite(x.webUrl).then(function(t){
+  return readSite(siteUrl).then(function(t){
     site.status='accessed'; site.text=t; site.note='Read just now by your browser.'; src.splice(1,0,site); return src;
   },function(e){
     site.status='not accessed'; site.note='Could not be read — '+e.message+'. Paste text from it above to have it used.'; src.push(site); return src;
