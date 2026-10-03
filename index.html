@@ -5381,8 +5381,8 @@ var COACH_SYS='You are a cold-call coach for a freelance web designer who sells 
 'If the transcript is too short or unclear to judge, say that plainly at the top instead of padding the sections.';
 
 function vCoach(){
-  var ready=!!(DB.settings.key||DB.settings.proxy);
-  var canUpload=window.LDNET.mode()!=='none';
+  var ready=window.LDNET.mode()!=='none';
+  var canUpload=ready;
   var h='<div class="wrap"><div style="height:16px"></div>';
   h+='<div class="card"><b style="font-size:17px">Call Coach</b>'+
     '<p class="hint">Dictate the call as it happens, upload the recording, or paste a transcript. It grades the call and rewrites the lines you fumbled.</p>'+
@@ -5697,7 +5697,7 @@ function vDash(){
       '<button class="btn pri" data-act="add">Add a lead</button>'+
       '<button class="btn" data-act="import">Paste leads in</button>'+
       '<button class="btn" data-go="finder">Open Lead Finder</button></div></div>';
-    if(!DB.settings.key&&!DB.settings.proxy){
+    if(window.LDNET.mode()==='none'){
       h+='<div class="card" style="margin-top:14px"><b style="font-size:16px">Turn the AI on first</b>'+
         '<p class="hint">Settings → AI. One OpenAI key switches on outreach writing, the lead finder, site prompts and the assistant.</p>'+
         '<button class="btn pri wide" style="margin-top:12px" data-go="set">Open settings</button></div>';
@@ -6647,7 +6647,9 @@ function callAI(userMsg,onDone,onErr){
 
 function generate(kind){
   var x=find(state.open); if(!x) return;
-  if(!DB.settings.key&&!DB.settings.proxy){ L.toast('Connect the AI in Settings first'); return; }
+  /* same connection check as the rest of the app: LDNET.mode() sees Cloud Sync, the access-code
+     gateway and a direct key. DB.settings.proxy is an obsolete field nothing writes any more. */
+  if(!(window.LDNET&&LDNET.mode()!=='none')){ L.toast('Connect the AI in Settings first'); return; }
   var task=TASKS[kind];
   state.gen[x.id]={title:task.title,text:'',busy:true,kind:kind};
   renderSheet();
@@ -10270,7 +10272,7 @@ if(window.LDCLOUD&&LDCLOUD.ready()){
   window.LD.replaySplash=function(){};
 })();
 
-if(!DB.leads.length&&!DB.settings.key&&!DB.settings.proxy){
+if(!DB.leads.length&&window.LDNET.mode()==='none'){
   setTimeout(function(){
     modal('<h3>Welcome to Nonmajority</h3>'+
       '<p class="lede">Everything runs on this device. Nothing is uploaded anywhere.</p>'+
