@@ -845,6 +845,16 @@ button.stat:hover:after{opacity:1;transform:none;background:var(--accent)}
 .lw-intake .lw-src{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 .lw-intake .lw-msg{max-height:480px;overflow-y:auto;padding:16px 18px;border-radius:var(--r-m);background:var(--bg-2);border:1px solid var(--line-soft)}
 .lw-intake pre.plain{margin:0;font-size:14px;line-height:1.7;color:var(--ink)}
+.lw-research .lw-src,.lw-dm .lw-src{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.lw-srcline{display:block;margin-top:3px;font-size:12px;color:var(--ink-3)}
+.lw-opp{margin:10px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.lw-opp .lbl{display:block;margin-bottom:2px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-3)}
+.lw-srcs,.lw-paste{margin-top:12px}.lw-srcs summary,.lw-paste summary{cursor:pointer}
+.lw-srcs ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px;font-size:13px}
+.lw-dmbtns{margin-top:12px;flex-wrap:wrap}
+.lw-read{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.lw-thread{max-height:360px;overflow-y:auto}.lw-thread .note.me{border-left-color:var(--accent)}
+.lw-dm .out textarea{min-height:110px}
 
 /* contact & facts */
 .kv .r{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line-soft);align-items:baseline}
@@ -5381,8 +5391,8 @@ var COACH_SYS='You are a cold-call coach for a freelance web designer who sells 
 'If the transcript is too short or unclear to judge, say that plainly at the top instead of padding the sections.';
 
 function vCoach(){
-  var ready=!!(DB.settings.key||DB.settings.proxy);
-  var canUpload=window.LDNET.mode()!=='none';
+  var ready=window.LDNET.mode()!=='none';
+  var canUpload=ready;
   var h='<div class="wrap"><div style="height:16px"></div>';
   h+='<div class="card"><b style="font-size:17px">Call Coach</b>'+
     '<p class="hint">Dictate the call as it happens, upload the recording, or paste a transcript. It grades the call and rewrites the lines you fumbled.</p>'+
@@ -5697,7 +5707,7 @@ function vDash(){
       '<button class="btn pri" data-act="add">Add a lead</button>'+
       '<button class="btn" data-act="import">Paste leads in</button>'+
       '<button class="btn" data-go="finder">Open Lead Finder</button></div></div>';
-    if(!DB.settings.key&&!DB.settings.proxy){
+    if(window.LDNET.mode()==='none'){
       h+='<div class="card" style="margin-top:14px"><b style="font-size:16px">Turn the AI on first</b>'+
         '<p class="hint">Settings → AI. One OpenAI key switches on outreach writing, the lead finder, site prompts and the assistant.</p>'+
         '<button class="btn pri wide" style="margin-top:12px" data-go="set">Open settings</button></div>';
@@ -6432,6 +6442,9 @@ function renderSheet(){
        '<div class="lw-msg"><pre class="plain">'+esc(x.message)+'</pre></div></div>';
   }
 
+  /* prospect research + Instagram DM (playbook-driven, saved on the lead) */
+  h+=researchCard(x,ready)+dmCard(x,ready);
+
   /* AI outreach */
   h+='<div class="card"><div class="lw-h"><h3>Write the outreach</h3>'+
      (ready?'':'<span class="pill flat">AI offline</span>')+'</div>'+
@@ -6587,6 +6600,21 @@ function leadFacts(x){
   p('Next follow-up planned',x.nextFollow?L.fmtDate(x.nextFollow):'');
   if(x.ammo.length) p('Existing talking points',x.ammo.join(' | '));
   if(x.notes.length) f.push('My notes (newest first):\n'+x.notes.slice(0,8).map(function(n){ return '  ['+L.fmtDate(n.t)+'] '+n.text; }).join('\n'));
+  if(x.message&&String(x.message).trim()) f.push('Client intake details (they submitted this through the website form):\n'+String(x.message).trim().slice(0,1500));
+  var rs=x.research;
+  if(rs&&rs.updated){
+    var rl=['Prospect research (saved '+String(rs.updated).slice(0,10)+'):'];
+    (rs.observations||[]).forEach(function(o){ rl.push('  - VERIFIED: '+o.text+' [source: '+(o.sourceLabel||o.source)+']'); });
+    if(!(rs.observations||[]).length) rl.push('  - No verified observation was found.');
+    if(rs.opportunity) rl.push('  - Possible opportunity: '+rs.opportunity);
+    if((rs.unknowns||[]).length) rl.push('  - Unknown / not verified: '+rs.unknowns.join('; '));
+    var na=(rs.sources||[]).filter(function(s){ return s.status==='not accessed'; }).map(function(s){ return s.label; });
+    if(na.length) rl.push('  - NOT accessed (never claim to have seen these): '+na.join('; '));
+    f.push(rl.join('\n'));
+  }
+  var th=x.dm&&Array.isArray(x.dm.thread)?x.dm.thread:[];
+  if(th.length) f.push('Instagram DM conversation (oldest first):\n'+th.slice(-16).map(function(m){ return '  '+(m.who==='them'?'THEM':'ME')+': '+m.text; }).join('\n'));
+  if(x.dm&&x.dm.dnc) f.push('IMPORTANT: this prospect asked not to be contacted again.');
   return f.join('\n');
 }
 function meBlock(){
@@ -6600,9 +6628,10 @@ function meBlock(){
   if(m.site) f.push('My website: '+m.site);
   return f.length?f.join('\n'):'(I have not filled in my own details yet — leave the sign-off blank rather than inventing one.)';
 }
-var SYS='You write outreach for a freelance web designer who builds websites and online booking systems for local small businesses. '+
+var SYS='You write outreach for the business owner described under ABOUT ME and in the AI training context — follow its Sales & DM Playbook when one is provided. '+
+'When no training is provided, assume a freelance web designer who builds websites and online booking systems for local small businesses. '+
 'You are given a lead record. Hard rules, no exceptions:\n'+
-'- Use ONLY facts present in the lead record. Never invent reviews, ratings, owner names, prices, services, customer complaints, years in business, or problems with their current website.\n'+
+'- Use ONLY facts present in the lead record (including its research and conversation). Never claim to have looked at a website, profile or review unless the research lists it as a source that was used. Never invent reviews, ratings, owner names, prices, services, customer complaints, years in business, or problems with their current website.\n'+
 '- If a field is missing, say nothing about it. Do not guess and do not use placeholders like [name] or [city].\n'+
 '- Never claim a business has no website or no booking system unless the record says so. If the status is "Not checked yet", do not mention it at all.\n'+
 '- If the record says they already have a working website, do not pitch a first website. Pitch an improvement or online booking instead, and stay humble about it.\n'+
@@ -6624,11 +6653,11 @@ var TASKS={
     'Frame them as what their customer experiences right now, not as insults about the business. No intro line, no closing line, just the bullets.'},
   follow:{title:'Follow-up message',prompt:
     'Write a follow-up. Use the call status, the last contact date, the pipeline stage and my notes to pick the right angle. '+
-    'If my notes say they asked for something, reference that. If they never answered, keep it light and short and give one new reason to reply. '+
+    'If my notes say they asked for something, reference that. If they never answered, keep it light and short and give one new reason to reply, taken from the research, my notes or the conversation. Never "just following up", "checking in" or "circling back". '+
     'Under 90 words. Start with "CHANNEL: email" or "CHANNEL: text" on its own line based on which one fits this situation, then a blank line, then the message. If email, include a Subject line.'},
   object:{title:'Objection responses',prompt:
-    'Write short spoken responses to these six brush-offs. Format each as the objection in caps on its own line, then my reply on the next line, then a blank line. '+
-    'Each reply is one to three sentences, conversational, no pressure, and ends by handing control back to them.\n\n'+
+    'Write short spoken responses to these six brush-offs, tailored to THIS lead from its record, research and conversation and following the Objection Handling in the playbook. Format each as the objection in caps on its own line, then my reply on the next line, then a blank line. '+
+    'Each reply is one to three sentences, conversational, no pressure, addresses the likely underlying concern instead of arguing, and hands control back to them. Do not copy the playbook\'s example lines word for word.\n\n'+
     'NOT INTERESTED\nHOW MUCH\nWE ALREADY USE FACEBOOK\nI DON\'T NEED A WEBSITE\nI\'LL THINK ABOUT IT\nSEND ME SOMETHING'}
 };
 
@@ -6647,7 +6676,10 @@ function callAI(userMsg,onDone,onErr){
 
 function generate(kind){
   var x=find(state.open); if(!x) return;
-  if(!DB.settings.key&&!DB.settings.proxy){ L.toast('Connect the AI in Settings first'); return; }
+  /* same connection check as the rest of the app: LDNET.mode() sees Cloud Sync, the access-code
+     gateway and a direct key. DB.settings.proxy is an obsolete field nothing writes any more. */
+  if(!(window.LDNET&&LDNET.mode()!=='none')){ L.toast('Connect the AI in Settings first'); return; }
+  if(kind!=='ammo'&&stopped(x)){ L.toast('This prospect asked not to be contacted'); return; }
   var task=TASKS[kind];
   state.gen[x.id]={title:task.title,text:'',busy:true,kind:kind};
   renderSheet();
@@ -6719,6 +6751,335 @@ function editForm(id){
     return '<label class="field"><span>'+esc(label)+'</span><select data-fld="'+k+'">'+opts(list,v)+'</select></label>';
   }
 }
+
+/* ============================================================
+   PROSPECT RESEARCH + INSTAGRAM DM — same LDNET.chat path as the rest of the
+   lead AI; the Sales & DM Playbook from AI Training is added to every
+   "outreach_*" call by the training layer, so there is one prompt system.
+   Saved on the lead itself (lead.research, lead.dm) so it syncs with the lead.
+   ============================================================ */
+state.dmOut=state.dmOut||{}; state.dmDraft=state.dmDraft||{}; state.rsBusy=state.rsBusy||{};
+function nowISO(){ return new Date().toISOString(); }
+function clipS(s,n){ s=String(s==null?'':s); return s.length>n?s.slice(0,n-1)+'…':s; }
+function dmOf(x){
+  if(!x.dm||typeof x.dm!=='object') x.dm={thread:[],dnc:false};
+  if(!Array.isArray(x.dm.thread)) x.dm.thread=[];
+  return x.dm;
+}
+var DNC_RE=/\b(stop (messaging|texting|contacting|dm'?ing|emailing)|do ?n[o']?t (contact|message|dm|text|email|reach out to) me|don'?t (contact|message|dm|text|email|reach out)|leave me alone|remove me|unsubscribe|not interested,? (stop|please stop)|never (contact|message) me|take me off|lose my number|block(ing)? you)\b/i;
+function asksToStop(t){ return DNC_RE.test(String(t||'')); }
+function lastThem(x){ var th=dmOf(x).thread; for(var i=th.length-1;i>=0;i--) if(th[i].who==='them') return th[i]; return null; }
+function stopped(x){ var lt=lastThem(x); return !!(dmOf(x).dnc||(lt&&asksToStop(lt.text))); }
+
+var INTENTS={do_not_contact:'Asked not to be contacted',rejection:'Genuine rejection',price:'Price question',timing:'Timing',
+  curiosity:'Curious',existing_solution:'Has an existing solution',no_need:'No perceived need',agency_skeptic:'Agency skepticism',
+  info_request:'Asked for information',considering:'Thinking it over',buying_intent:'High buying intent',call_request:'Wants to talk',other:'Other'};
+var CONV_STAGES={attention:'Attention',response:'Response',discovery:'Discovery',problem:'Problem identification',relevance:'Relevance',
+  qualification:'Qualification',permission:'Permission to show solution',next_step:'Call / next step',closed:'Conversation closed'};
+/* only real buying signals move the pipeline — a reply on its own does not */
+var STAGE_FOR={buying_intent:'Interested',call_request:'Interested',price:'Interested',rejection:'Lost',do_not_contact:'Lost'};
+
+/* ---------- research: gather only what this CRM actually has or can actually open ---------- */
+function crmLines(x){
+  var f=[];
+  function p(k,v){ if(v!==''&&v!=null) f.push(k+': '+v); }
+  p('Business name',x.business); p('Industry',x.industry); p('Location',[x.city,x.state].filter(Boolean).join(', '));
+  p('Owner',x.owner);
+  p('Website status (as recorded in the CRM)',x.web&&x.web!=='unknown'?L.labelOf(L.WEB,x.web):'not checked');
+  p('Website URL',x.webUrl||x.website);
+  p('Online booking status (as recorded in the CRM)',x.book&&x.book!=='unknown'?L.labelOf(L.BOOK,x.book):'not checked');
+  p('Booking URL',x.bookUrl);
+  p('Google rating (as recorded in the CRM)',x.rating); p('Number of reviews (as recorded in the CRM)',x.reviews);
+  p('Instagram handle/link on file',x.instagram); p('Facebook link on file',x.facebook); p('Yelp link on file',x.yelp);
+  p('Lead source',x.source);
+  return f;
+}
+function readSite(url){
+  var u=/^https?:/i.test(url)?url:'https://'+url;
+  var ctl=window.AbortController?new AbortController():null;
+  var timer=setTimeout(function(){ if(ctl) ctl.abort(); },7000);
+  return fetch(u,{mode:'cors',credentials:'omit',redirect:'follow',signal:ctl?ctl.signal:undefined}).then(function(r){
+    clearTimeout(timer);
+    if(!r.ok) throw new Error('the site answered '+r.status);
+    return r.text();
+  }).then(function(html){
+    var d=new DOMParser().parseFromString(html,'text/html');
+    ['script','style','noscript','svg','template'].forEach(function(t){ d.querySelectorAll(t).forEach(function(n){ n.remove(); }); });
+    var out=[];
+    var title=(d.querySelector('title')||{}).textContent;
+    var desc=(d.querySelector('meta[name="description"]')||{getAttribute:function(){return '';}}).getAttribute('content');
+    if(title) out.push('Page title: '+title.trim());
+    if(desc) out.push('Meta description: '+desc.trim());
+    var heads=[].slice.call(d.querySelectorAll('h1,h2')).map(function(h){ return h.textContent.trim(); }).filter(Boolean).slice(0,8);
+    if(heads.length) out.push('Headings: '+heads.join(' | '));
+    var ctas=[].slice.call(d.querySelectorAll('a,button')).map(function(a){ return (a.textContent||'').trim().replace(/\s+/g,' '); })
+      .filter(function(t){ return t&&t.length<40&&/book|schedul|appoint|contact|call|quote|order|reserve|buy|shop|get started|message|dm/i.test(t); });
+    var seen={}; ctas=ctas.filter(function(t){ var k=t.toLowerCase(); if(seen[k]) return false; seen[k]=1; return true; }).slice(0,10);
+    out.push('Calls to action found: '+(ctas.length?ctas.join(' | '):'none found in the page HTML'));
+    out.push('Forms on the page: '+d.querySelectorAll('form').length);
+    out.push('Phone links: '+d.querySelectorAll('a[href^="tel:"]').length+' · Email links: '+d.querySelectorAll('a[href^="mailto:"]').length);
+    var body=(d.body&&d.body.textContent||'').replace(/\s+/g,' ').trim();
+    if(body) out.push('Visible text (start): '+clipS(body,1400));
+    return out.join('\n');
+  }).catch(function(e){
+    clearTimeout(timer);
+    var m=String(e&&e.message||e);
+    throw new Error(/abort/i.test(m)?'the site took too long to answer':/answered/.test(m)?m:'the site does not let a browser read it directly');
+  });
+}
+function gatherSources(x){
+  var src=[], rs=x.research||{}, input=rs.input||{}, dm=dmOf(x);
+  src.push({id:'crm',label:'Lead record in this CRM',status:'used',text:crmLines(x).join('\n')});
+  if(x.message&&String(x.message).trim()) src.push({id:'intake',label:'Client intake form they submitted',status:'used',text:clipS(x.message,2500)});
+  if((x.notes||[]).length) src.push({id:'notes',label:'Your notes on this lead',status:'used',text:x.notes.slice(0,10).map(function(n){ return '['+n.t+'] '+n.text; }).join('\n')});
+  if(dm.thread.length) src.push({id:'dm',label:'DM conversation logged here',status:'used',text:dm.thread.slice(-16).map(function(m){ return (m.who==='them'?'THEM: ':'ME: ')+m.text; }).join('\n')});
+  if(input.text&&input.text.trim()) src.push({id:'pasted',label:'Pasted by you'+(input.from?' — '+input.from:''),status:'used',text:clipS(input.text,4000)});
+  var siteUrl=x.webUrl||x.website||'';
+  var site=siteUrl?{id:'site',label:'Website '+siteUrl,status:'pending',text:''}:null;
+  if(x.instagram) src.push({id:'instagram',label:'Instagram '+x.instagram,status:'not accessed',
+    note:'The CRM cannot open Instagram. Paste the bio, link in bio or recent posts above to have them used.'});
+  if(x.facebook) src.push({id:'facebook',label:'Facebook page',status:'not accessed',note:'The CRM cannot open Facebook. Paste anything relevant above.'});
+  if(x.rating||x.reviews) src.push({id:'reviews',label:'Live Google reviews',status:'not accessed',
+    note:'Only the rating and count stored on this lead are used. Review text was not read.'});
+  if(!site) return Promise.resolve(src);
+  return readSite(siteUrl).then(function(t){
+    site.status='accessed'; site.text=t; site.note='Read just now by your browser.'; src.splice(1,0,site); return src;
+  },function(e){
+    site.status='not accessed'; site.note='Could not be read — '+e.message+'. Paste text from it above to have it used.'; src.push(site); return src;
+  });
+}
+function research(){
+  var x=find(state.open); if(!x) return;
+  if(!(window.LDNET&&LDNET.mode()!=='none')){ L.toast('Connect the AI in Settings first'); return; }
+  syncResearchInput(x);
+  state.rsBusy[x.id]=true; renderSheet();
+  gatherSources(x).then(function(src){
+    var used=src.filter(function(s){ return s.status==='used'||s.status==='accessed'; });
+    var missing=src.filter(function(s){ return s.status==='not accessed'; });
+    var ids={}; used.forEach(function(s){ ids[s.id]=s; });
+    var user='SOURCES YOU MAY USE (each one was actually available to the CRM):\n\n'+used.map(function(s){ return '['+s.id+'] '+s.label+'\n'+s.text; }).join('\n\n')+
+      '\n\nSOURCES NOT ACCESSED (you have NOT seen these — never describe their contents):\n'+(missing.length?missing.map(function(s){ return '- '+s.label+': '+s.note; }).join('\n'):'- none')+
+      '\n\nABOUT ME\n'+meBlock()+
+      '\n\nTASK\nFollow the Prospect Research Rules in the playbook. Find ONE or TWO meaningful, verified observations about this business that point to a legitimate reason I could help '+
+      '(customer acquisition, lead capture, booking or contact flow, follow-up, manual work, website, CRM, AI or automation). Each observation must be directly supported by one source id above and quote or name the exact field it comes from. '+
+      'Do not criticise the business. Do not assume anything a source does not say — list it under unknowns instead. If the sources do not support any meaningful observation, return an empty observations list.\n\n'+
+      'Return ONLY JSON: {"observations":[{"text":"","source":"<source id>","evidence":"the exact field or words it rests on"}],"opportunity":"one sentence, or empty","opportunity_basis":"which observation it follows from",'+
+      '"unknowns":["what could not be verified"],"dm_angle":"one short line on how a first DM could open, or empty"}';
+    return window.LDNET.chat({task:'reason',feature:'outreach_research',system:SYS_RS,messages:[{role:'user',content:user}],maxTokens:900}).then(function(r){
+      var j=(window.LDAI&&LDAI.firstJSON&&LDAI.firstJSON(r.text))||{};
+      var obs=(Array.isArray(j.observations)?j.observations:[]).filter(function(o){ return o&&o.text&&ids[o.source]; }).slice(0,2).map(function(o){
+        return {text:String(o.text).trim(),source:o.source,sourceLabel:ids[o.source].label,evidence:String(o.evidence||'').trim()};
+      });
+      var dropped=(Array.isArray(j.observations)?j.observations.length:0)-obs.length;
+      x.research={updated:nowISO(),observations:obs,opportunity:obs.length?String(j.opportunity||'').trim():'',basis:String(j.opportunity_basis||'').trim(),
+        angle:obs.length?String(j.dm_angle||'').trim():'',
+        unknowns:(Array.isArray(j.unknowns)?j.unknowns:[]).map(function(u){ return String(u).trim(); }).filter(Boolean).slice(0,5),
+        sources:src.map(function(s){ return {id:s.id,label:s.label,status:s.status,note:s.note||''}; }),
+        dropped:dropped>0?dropped:0,input:(x.research&&x.research.input)||{}};
+      L.save();
+    });
+  }).catch(function(e){ L.toast('Research failed: '+clipS(e.message||e,120)); })
+  .then(function(){ delete state.rsBusy[x.id]; if(state.open===x.id) renderSheet(); });
+}
+var SYS_RS='You are a careful prospect researcher working for the business owner described under ABOUT ME. You report only what the supplied sources actually contain. '+
+  'You never claim to have viewed a website, Instagram profile, review or anything else that is not in the sources you are given. Unknown means unknown.';
+function syncResearchInput(x){
+  var t=$('#rsText'), f=$('#rsFrom'); if(!t) return;
+  if(!x.research) x.research={input:{}};
+  x.research.input={text:t.value,from:f?f.value:''};
+}
+
+/* ---------- DM writing ---------- */
+var SYS_DM='You write Instagram DMs for the business owner described under ABOUT ME. The Sales & DM Playbook in the AI training context is their explicit instruction — follow it over anything else. '+
+  'Use only facts present in the lead record, the research and the conversation. Never invent prices, clients, results, case studies, deadlines, demand, scarcity or reviews. '+
+  'Never say or imply you looked at a website, profile or review unless it appears in the research as a source that was used or accessed. Never use placeholders like [name].';
+var LINT=[[/just following up|just checking in|\bchecking in\b|circling back|any thoughts\??$/im,'a "just following up" line'],
+  [/love your (page|feed|content|work)|came across your (amazing|awesome)|help businesses like yours|love to connect|interested in learning more|hope (this|you).{0,20}(finds|doing well)/i,'a generic compliment or agency line'],
+  [/game[- ]?chang|skyrocket|\b10x\b|guarantee|revolutionary|scale to the moon|dominate|\bcrush\b/i,'hype language'],
+  [/but hear me out|can i just explain|you don'?t understand|most businesses say|make it cheaper/i,'arguing or discounting'],
+  [/\[[^\]]{2,}\]/,'a placeholder']];
+function lint(text,kind){
+  var t=String(text||''), out=[];
+  LINT.forEach(function(r){ if(r[0].test(t)) out.push(r[1]); });
+  var q=(t.match(/\?/g)||[]).length; if(q>1) out.push(q+' questions (one maximum)');
+  var em=(t.match(/\p{Extended_Pictographic}/gu)||[]).length; if(em>1) out.push(em+' emojis');
+  if(kind==='first'&&t.length>420) out.push('too long for a first DM');
+  return out;
+}
+function convo(x){
+  var th=dmOf(x).thread;
+  return th.length?th.slice(-20).map(function(m){ return (m.who==='them'?'THEM':'ME')+' ('+String(m.t||'').slice(0,10)+'): '+m.text; }).join('\n'):'(no messages logged yet)';
+}
+function dmPrompt(x,kind,their){
+  var base='LEAD RECORD\n'+leadFacts(x)+'\n\nABOUT ME\n'+meBlock()+'\n\nSTYLE\n'+(DB.settings.tone||'Direct and friendly. Short sentences.')+
+    '\n\nINSTAGRAM CONVERSATION SO FAR (oldest first)\n'+convo(x)+'\n\n';
+  var rs=x.research, hasRs=!!(rs&&rs.observations&&rs.observations.length);
+  if(kind==='first') return base+'TASK\nWrite the first outbound Instagram DM to this business, following the Instagram DM Strategy, Exclusivity Rules and Forbidden Language in the playbook. '+
+    (hasRs?'Build it on the verified research observation(s) — mention one specific observation naturally.':'There is no verified research for this prospect. Write naturally from the lead record only and do NOT imply you looked at their page, site or reviews.')+
+    ' Usually one to three short sentences, under 300 characters. At most ONE question. No service list, no call request, no pricing, no greeting fluff, no sign-off, no hashtags, no more than one emoji. Do not copy any example wording from the playbook. Output only the DM text.';
+  if(kind==='follow') return base+'TASK\nWrite a follow-up Instagram DM following the Follow-Up Strategy in the playbook. It must give a legitimate NEW reason to reopen the conversation that comes from the research, my notes or the conversation — never "just following up", "checking in" or "circling back". '+
+    'Do not repeat anything already sent. If the conversation shows they declined or asked to stop, or there is no legitimate new reason in the material above, do not write one.\n\n'+
+    'Return ONLY JSON: {"reason":"the new reason, for me (never sent) — or the word none","message":"the DM, or empty"}';
+  return base+'THEIR LATEST MESSAGE\n"'+their+'"\n\n'+(asksToStop(their)?'NOTE: their message reads as a request to stop contact. Respect it.\n\n':'')+
+    'TASK\nReply to their latest message following the playbook (objection handling, qualification, hot lead rules, tone, forbidden language). Do not assume the stated objection is the real one; use the whole conversation and the lead record. '+
+    'Privately decide: what they actually said, what it probably means, the evidence, any underlying objection, the smallest useful response, whether to ask a question, the next stage, and whether to stop. Do NOT reuse wording from a reply already sent in this conversation or copy the playbook\'s example lines word for word.\n\n'+
+    'Return ONLY JSON: {"intent":"do_not_contact|rejection|price|timing|curiosity|existing_solution|no_need|agency_skeptic|info_request|considering|buying_intent|call_request|other",'+
+    '"meaning":"one sentence for me (never sent)","evidence":"the words in their message that show it","stage":"attention|response|discovery|problem|relevance|qualification|permission|next_step|closed",'+
+    '"stop":false,"follow_up_in_days":null,"message":"the exact DM to send, or empty if the right move is not to reply"}\n'+
+    'Message rules: Instagram length (usually one to three short sentences), at most one question, no greeting fluff, no sign-off, no hashtags, at most one emoji. If they asked for the next step, stop asking discovery questions and move to it. '+
+    'If they asked not to be contacted: intent do_not_contact, stop true, and the message is empty or one brief courteous line with no question and no pitch.';
+}
+function askDM(kind,their){
+  var x=find(state.open); if(!x) return;
+  if(!(window.LDNET&&LDNET.mode()!=='none')){ L.toast('Connect the AI in Settings first'); return; }
+  if(kind!=='reply'&&stopped(x)){ L.toast('This prospect asked not to be contacted'); return; }
+  state.dmOut[x.id]={kind:kind,busy:true,their:their||''};
+  renderSheet();
+  var user=dmPrompt(x,kind,their), json=kind!=='first';
+  function call(msgs){ return window.LDNET.chat({task:'write',feature:'outreach_dm_'+kind,system:SYS_DM,messages:msgs,maxTokens:900}); }
+  function parse(text){
+    if(!json) return {message:String(text||'').trim().replace(/^"|"$/g,'')};
+    var j=(window.LDAI&&LDAI.firstJSON&&LDAI.firstJSON(text))||null;
+    if(!j) return {message:String(text||'').trim(),unparsed:true};
+    return j;
+  }
+  var msgs=[{role:'user',content:user}];
+  call(msgs).then(function(r){
+    var o=parse(r.text), issues=o.message?lint(o.message,kind):[];
+    if(!issues.length) return {o:o,issues:[]};
+    /* one corrective pass when a draft breaks the playbook's hard rules */
+    return call(msgs.concat([{role:'assistant',content:r.text},{role:'user',content:'That draft breaks the playbook: it contains '+issues.join(', ')+'. Rewrite it so it does not. Same output format.'}]))
+      .then(function(r2){ var o2=parse(r2.text); return {o:o2,issues:o2.message?lint(o2.message,kind):[]}; });
+  }).then(function(res){
+    var o=res.o, out={kind:kind,busy:false,their:their||'',text:String(o.message||'').trim(),issues:res.issues};
+    if(kind==='reply'){
+      var intent=INTENTS[o.intent]?o.intent:'other';
+      if(asksToStop(their)) intent='do_not_contact';
+      out.intent=intent; out.meaning=String(o.meaning||'').trim(); out.evidence=String(o.evidence||'').trim();
+      out.stage=CONV_STAGES[o.stage]?o.stage:''; out.stop=intent==='do_not_contact'||o.stop===true;
+      var d=parseInt(o.follow_up_in_days,10); out.days=(d>0&&d<120&&!out.stop)?d:0;
+      if(intent==='do_not_contact'&&/\?/.test(out.text)) out.text='';
+    }
+    if(kind==='follow'){ out.reason=String(o.reason||'').trim(); if(/^none\b/i.test(out.reason)) out.text=''; }
+    state.dmOut[x.id]=out;
+    if(state.open===x.id){ renderSheet(); var el=$('#dmOutText'); if(el) el.scrollIntoView({block:'center',behavior:'smooth'}); }
+  }).catch(function(e){
+    state.dmOut[x.id]={kind:kind,busy:false,their:their||'',text:'',error:String(e.message||e)};
+    if(state.open===x.id) renderSheet();
+  });
+}
+function addMsg(x,who,text){
+  var th=dmOf(x).thread; th.push({who:who,text:text,t:nowISO()});
+  if(th.length>60) th.splice(0,th.length-60);
+}
+
+/* ---------- workspace cards ---------- */
+function researchCard(x,ready){
+  var rs=x.research||{}, busy=!!state.rsBusy[x.id], input=rs.input||{};
+  var h='<div class="card lw-research"><div class="lw-h"><h3>Research</h3>'+
+    '<span class="lw-src">'+(rs.updated?'Updated '+esc(L.fmtDate(rs.updated.slice(0,10))):'Not researched yet')+'</span></div>';
+  if(busy) h+='<div class="nx-skel"><i></i><i></i><i></i></div><p class="hint" style="margin-top:4px">Reading what this CRM can actually access…</p>';
+  else if(rs.updated){
+    if(rs.observations&&rs.observations.length){
+      h+='<ul class="reasons lw-obs">'+rs.observations.map(function(o){
+        return '<li><b>✓</b><span>'+esc(o.text)+'<span class="lw-srcline">Source: '+esc(o.sourceLabel||o.source)+(o.evidence?' — “'+esc(clipS(o.evidence,160))+'”':'')+'</span></span></li>';
+      }).join('')+'</ul>';
+      if(rs.opportunity) h+='<p class="lw-opp"><span class="lbl">POSSIBLE OPPORTUNITY</span>'+esc(rs.opportunity)+'</p>';
+    } else h+='<p class="hint" style="margin-top:0">No verified observation yet — the sources below did not support one. DMs will be written without claiming any research.</p>';
+    if(rs.unknowns&&rs.unknowns.length) h+='<p class="lw-opp"><span class="lbl">UNKNOWN</span>'+esc(rs.unknowns.join(' · '))+'</p>';
+    h+='<details class="lw-srcs"><summary class="hint">What the AI used ('+(rs.sources||[]).filter(function(s){ return s.status!=='not accessed'; }).length+' of '+(rs.sources||[]).length+' sources)</summary><ul>'+
+      (rs.sources||[]).map(function(s){
+        var ok=s.status!=='not accessed';
+        return '<li><span class="lw-status '+(ok?'no':'unk')+'">'+(s.status==='accessed'?'Read':ok?'Used':'Not accessed')+'</span> '+esc(s.label)+(s.note?'<div class="hint" style="margin:2px 0 0">'+esc(s.note)+'</div>':'')+'</li>';
+      }).join('')+'</ul>'+(rs.dropped?'<p class="hint">'+rs.dropped+' unsupported observation'+(rs.dropped===1?' was':'s were')+' discarded.</p>':'')+'</details>';
+  } else h+='<p class="hint" style="margin-top:0">Pulls one or two verified observations from this record, the intake form, your notes, the DM thread, the website when your browser can read it, and anything you paste below. Nothing is guessed — what can’t be checked is marked unknown.</p>';
+  h+='<details class="lw-paste"'+(input.text?' open':'')+'><summary class="hint">Paste what you can see (Instagram bio, link in bio, website copy, reviews)</summary>'+
+    '<label class="field"><span>Where it’s from</span><input id="rsFrom" value="'+esc(input.from||'')+'" placeholder="e.g. Instagram bio, viewed today"></label>'+
+    '<label class="field"><span>Text</span><textarea id="rsText" rows="4" placeholder="Paste the exact text. Only what is here gets used.">'+esc(input.text||'')+'</textarea></label></details>'+
+    '<div class="nm-row lw-dmbtns"><button class="btn'+(rs.updated?'':' pri')+'" data-dm="research"'+(ready&&!busy?'':' disabled')+'><span class="ico">'+ICO.target+'</span>'+(rs.updated?'Research again':'Research prospect')+'</button>'+
+    (rs.updated?'<button class="btn sm ghost" data-dm="clearResearch">Clear</button>':'')+'</div></div>';
+  return h;
+}
+function dmCard(x,ready){
+  var dm=dmOf(x), o=state.dmOut[x.id], stop=stopped(x), draft=state.dmDraft[x.id]||'';
+  var h='<div class="card lw-dm"><div class="lw-h"><h3>Instagram DM<em>'+dm.thread.length+'</em></h3>'+(ready?'':'<span class="pill flat">AI offline</span>')+'</div>';
+  if(dm.dnc) h+='<div class="warnbox">They asked not to be contacted. Outreach for this lead is paused. <button class="btn sm ghost" data-dm="undnc">Undo</button></div>';
+  else if(stop) h+='<div class="warnbox">Their last message reads as a request to stop. Don’t send more outreach. <button class="btn sm" data-dm="dnc">Mark do not contact</button></div>';
+  h+='<div class="aigrid lw-dmbtns">'+
+    '<button class="btn" data-dm="first"'+(ready&&!stop?'':' disabled')+'><span class="ico">'+ICO.chat+'</span>'+(dm.thread.some(function(m){ return m.who==='me'; })?'New opener':'First DM')+'</button>'+
+    '<button class="btn" data-dm="follow"'+(ready&&!stop&&dm.thread.length?'':' disabled')+'><span class="ico">'+ICO.loop+'</span>Follow-up DM</button></div>';
+  if(dm.thread.length){
+    h+='<div class="notes lw-timeline lw-thread">'+dm.thread.map(function(m,i){
+      return '<div class="note'+(m.who==='me'?' me':'')+'"><div class="t">'+(m.who==='them'?'THEM':'YOU')+' · '+esc(L.fmtDate(String(m.t||'').slice(0,10)))+
+        ' <button data-dmdel="'+i+'" aria-label="Remove message">×</button></div><p>'+esc(m.text)+'</p></div>';
+    }).join('')+'</div>';
+  }
+  h+='<label class="field" style="margin-top:12px"><span>Their reply</span><textarea id="dmIn" rows="2" placeholder="Paste what they sent">'+esc(draft)+'</textarea></label>'+
+    '<div class="nm-row lw-dmbtns"><button class="btn pri" data-dm="reply"'+(ready?'':' disabled')+'>Suggest a reply</button>'+
+    '<button class="btn sm" data-dm="logThem">Log their message</button><button class="btn sm" data-dm="logMe">Log my message</button></div>';
+  if(o){
+    var title=o.kind==='first'?'First DM':o.kind==='follow'?'Follow-up DM':'Suggested reply';
+    h+='<div class="out"><div class="oh"><b>'+title+'</b>'+(o.busy?'<span class="spin"></span>':
+      '<button class="btn sm" data-dm="redo">Redo</button>'+(o.text?'<button class="btn sm" data-dm="copy">Copy</button><button class="btn sm pri" data-dm="sent">Mark sent</button>':''))+'</div>';
+    if(o.busy) h+='<div class="nx-skel"><i></i><i></i><i></i></div><p class="hint" style="margin-top:4px">Reading the conversation…</p>';
+    else if(o.error) h+='<div class="warnbox">'+esc(o.error)+'</div>';
+    else {
+      if(o.kind==='reply'){
+        h+='<div class="lw-read"><span class="pill '+(o.intent==='buying_intent'||o.intent==='call_request'?'hot':o.intent==='do_not_contact'||o.intent==='rejection'?'flat':'dot')+'">'+esc(INTENTS[o.intent]||'Other')+'</span>'+
+          (o.stage?'<span class="pill flat">'+esc(CONV_STAGES[o.stage])+'</span>':'')+'</div>'+
+          (o.meaning?'<p class="lw-opp"><span class="lbl">WHAT IT MEANS · NOT SENT</span>'+esc(o.meaning)+(o.evidence?' <span class="dim">(“'+esc(clipS(o.evidence,120))+'”)</span>':'')+'</p>':'');
+        var sug=STAGE_FOR[o.intent], acts='';
+        if(o.intent==='do_not_contact'&&!dm.dnc) acts+='<button class="btn sm" data-dm="dnc">Mark do not contact</button>';
+        else if(sug&&x.stage!==sug&&(sug==='Lost'||L.STAGES.indexOf(sug)>L.STAGES.indexOf(x.stage))) acts+='<button class="btn sm" data-dm="stage" data-v="'+esc(sug)+'">Move to '+esc(sug)+'</button>';
+        if(o.days) acts+='<button class="btn sm" data-dm="fu" data-v="'+o.days+'">Follow up in '+o.days+' day'+(o.days===1?'':'s')+'</button>';
+        if(acts) h+='<div class="nm-row lw-dmbtns">'+acts+'</div>';
+      }
+      if(o.kind==='follow'&&o.reason&&o.text) h+='<p class="lw-opp"><span class="lbl">NEW REASON · NOT SENT</span>'+esc(o.reason)+'</p>';
+      if(o.text) h+='<textarea id="dmOutText" spellcheck="false">'+esc(o.text)+'</textarea>';
+      else h+='<p class="hint">'+(o.kind==='follow'?'No legitimate new reason to follow up yet. Add research or a note first — the playbook never sends a “just following up”.':
+        o.stop?'Best move: don’t reply further.':'No message suggested.')+'</p>';
+      if(o.issues&&o.issues.length) h+='<div class="warnbox">Check before sending — still contains '+esc(o.issues.join(', '))+'.</div>';
+    }
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+
+document.addEventListener('input',function(e){
+  var t=e.target; if(!state.open) return;
+  if(t.id==='dmIn') state.dmDraft[state.open]=t.value;
+  else if(t.id==='rsText'||t.id==='rsFrom'){ var x=find(state.open); if(x){ syncResearchInput(x); L.save(); } }
+});
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-dm],[data-dmdel]'); if(!el||!state.open) return;
+  var x=find(state.open); if(!x) return;
+  var a=el.dataset.dm, o=state.dmOut[x.id];
+  if(el.dataset.dmdel!=null){ dmOf(x).thread.splice(+el.dataset.dmdel,1); L.save(); renderSheet(); return; }
+  if(a==='research') return research();
+  if(a==='clearResearch'){ x.research={input:(x.research||{}).input||{}}; L.save(); renderSheet(); return; }
+  if(a==='first'||a==='follow') return askDM(a);
+  if(a==='reply'||a==='logThem'||a==='logMe'){
+    var inp=$('#dmIn'), v=inp?inp.value.trim():'';
+    if(!v){ L.toast(a==='logMe'?'Type or paste your message first':'Paste their message first'); return; }
+    addMsg(x,a==='logMe'?'me':'them',v); state.dmDraft[x.id]=''; L.save();
+    if(a==='reply') return askDM('reply',v);
+    renderSheet(); return;
+  }
+  if(a==='redo'&&o) return askDM(o.kind,o.their);
+  if(a==='copy'||a==='sent'){
+    var ta=$('#dmOutText'), text=(ta?ta.value:(o&&o.text)||'').trim(); if(!text) return;
+    if(a==='copy'){ L.copyText(text,'DM copied'); return; }
+    addMsg(x,'me',text);
+    x.lastContacted=L.today();
+    if(o&&(o.kind==='first'||o.kind==='follow')) x.attempts=(parseInt(x.attempts,10)||0)+1;
+    if(x.stage==='New') x.stage='Contacted';
+    delete state.dmOut[x.id]; L.save(); renderSheet(); L.toast('Logged as sent'); return;
+  }
+  if(a==='stage'){ x.stage=el.dataset.v; L.save(); renderSheet(); L.toast('Moved to '+x.stage); return; }
+  if(a==='fu'){ var dt=new Date(); dt.setDate(dt.getDate()+parseInt(el.dataset.v,10)); x.nextFollow=dt.toISOString().slice(0,10); L.save(); renderSheet(); L.toast('Follow-up set'); return; }
+  if(a==='dnc'){ dmOf(x).dnc=true; x.stage='Lost'; x.callStatus='Do not call'; x.nextFollow=''; delete state.dmOut[x.id]; L.save(); renderSheet(); L.toast('Marked do not contact'); return; }
+  if(a==='undnc'){ dmOf(x).dnc=false; L.save(); renderSheet(); return; }
+});
 
 window.LD.openLead=openLead;
 window.LD.closeLead=closeLead;
@@ -10270,7 +10631,7 @@ if(window.LDCLOUD&&LDCLOUD.ready()){
   window.LD.replaySplash=function(){};
 })();
 
-if(!DB.leads.length&&!DB.settings.key&&!DB.settings.proxy){
+if(!DB.leads.length&&window.LDNET.mode()==='none'){
   setTimeout(function(){
     modal('<h3>Welcome to Nonmajority</h3>'+
       '<p class="lede">Everything runs on this device. Nothing is uploaded anywhere.</p>'+
@@ -14479,6 +14840,73 @@ var VOICES=['Professional','Casual','Direct','Educational','Funny','Bold','Story
 function labelOf(list,k){ for(var i=0;i<list.length;i++) if(list[i][0]===k) return list[i][1]; return k||''; }
 
 /* ---------- the workspace store ---------- */
+/* ---------- Sales & DM Playbook — twelve editable areas, prefilled with the NONMAJORITY DIGITAL operating system.
+   Lives on training.sales, so it saves, backs up and syncs with the rest of AI Training. ---------- */
+var SALES_FIELDS=[
+  ['philosophy','Core Sales Philosophy',
+'The goal is not to convince everyone. Identify businesses with a genuine growth or system opportunity, start a natural conversation, qualify it, and move qualified prospects toward a conversation.\n'+
+'Operate like a sharp founder doing personalised one-to-one outreach, not a generic sales bot.\n'+
+'Never sound desperate. Never chase someone who clearly wants to leave. Never pressure anyone into a call. Never dump a list of services on a prospect.\n'+
+'The prospect should feel "this person actually looked at my business", not "this was copied and sent to 100 businesses".\n'+
+'Conversation stages, in order: attention, response, discovery, problem identification, relevance, qualification, permission to show the solution, call / next step. Do not skip from the first to the last unless the prospect clearly asks for it.\n'+
+'Before every reply, decide privately: what did they actually say, what does it probably mean, what evidence supports that, is there an underlying objection, what is the smallest useful response, should I ask a question, what is the next logical stage, should I stop instead. Never show this analysis to the prospect — return only the message to send.\n'+
+'Decision rule: relevance over persuasion, conversation over pitch, specificity over generic personalisation, qualification over chasing, evidence over assumptions, selectivity over desperation, one good question over five, useful information over withholding, long-term trust over a forced short-term sale.'],
+  ['positioning','NONMAJORITY DIGITAL Positioning',
+'NONMAJORITY DIGITAL provides websites, AI systems, CRM systems, AI automation and content/marketing systems. Positioning line: Websites. AI. CRM. Marketing.\n'+
+'Do not sell "a website". Sell the underlying improvement when it is relevant: more efficient customer acquisition, better lead capture, better booking flow, better follow-up, less manual work, better visibility into leads, better business systems, better use of AI, a better customer experience.\n'+
+'Never force a problem onto a prospect that does not have it. If a website is not the right fix, say so and point at what is.'],
+  ['dm','Instagram DM Strategy',
+'First DM: short, natural, specific, human, focused on the prospect, low pressure, one question maximum.\n'+
+'Do not explain every service in the first message. Do not ask for a 30-minute call straight away. Do not send pricing first. No giant paragraphs.\n'+
+'The first objective is a real response, not closing the sale.\n'+
+'Personalisation must name a real business observation. Weak: "I love what you\'re doing." Strong: "I noticed most of your traffic goes through Instagram, but there isn\'t an obvious next step for someone who wants to book."\n'+
+'A good shape (vary it, never copy it): "I noticed [specific observation]. Curious — [simple question]?"\n'+
+'Questions must be easy to answer, relevant, about their business, based on something observed and not overly broad. Avoid "What are your biggest challenges?". Prefer "Are most of your customers finding you through Instagram right now?", "Do people usually DM you to book, or do you have another system?", "Are you handling those inquiries manually right now?". One question at a time.'],
+  ['research','Prospect Research Rules',
+'Workflow: prospect, research, verified observation, potential opportunity, personalised DM.\n'+
+'Use only legitimate information that was actually available: business type, location, services, offer, website, Instagram profile, booking and contact process, link in bio, Google presence, reviews, content quality, posting activity, calls to action, lead capture, booking friction, customer-journey gaps, signs of growth or manual work, reliance on Instagram/Facebook, whether a website exists or looks outdated, and obvious openings for AI, automation, CRM, booking or lead capture.\n'+
+'Never fabricate an observation. Never claim to have viewed an Instagram page, website or review that was not actually provided or accessed. If something cannot be verified, treat it as unknown.\n'+
+'Find one or two meaningful observations, not a report. The aim is not to criticise the business — it is to find a legitimate reason NONMAJORITY DIGITAL could help.\n'+
+'If there is no research, write naturally without pretending any research was done.'],
+  ['exclusivity','Exclusivity Rules',
+'Communicate selectivity through relevance, never through fake scarcity.\n'+
+'Never invent client limits, deadlines, demand, waitlists, results, clients or case studies.\n'+
+'Natural ways to show selectivity: "Your business actually stood out to me because…", "I don\'t reach out to every business I come across.", "I only reach out when I see something I think we could actually improve.", "This isn\'t something I\'d recommend to every business.", "If I don\'t think there\'s a real opportunity, I\'ll tell you."\n'+
+'The message is "we choose who we work with", never "please buy from us".'],
+  ['objections','Objection Handling',
+'An objection is information, not a command to argue. Work out what is really going on — no perceived need, timing, price uncertainty, an existing solution, not seeing the value, not trusting the sender yet, not wanting a sales conversation, being busy, bad agency experiences, or thinking the current system is good enough. The stated objection is not always the real one.\n'+
+'Not interested: respect it. Sometimes a light, curious question fits ("Totally fair. Out of curiosity, are you already happy with how you\'re getting customers right now?") — but not every time, and never if they clearly want no further contact. Never argue, never "but hear me out", "can I just explain", "you don\'t understand", "most businesses say that".\n'+
+'How much: do not throw out a random number. Find out what they need ("Depends on what you actually need. What are you trying to improve right now?"). If they insist, give a transparent range when there is enough information. Never hide pricing to create mystery.\n'+
+'We already use Facebook: never criticise Facebook. Ask what happens after someone finds them there — DM, call, or somewhere to book.\n'+
+'I don\'t need a website: do not defend websites. "Fair. A website isn\'t always the answer. What are you currently using to turn people who find you online into customers?" If their system is genuinely strong, say so, then see whether another service is relevant.\n'+
+'I\'ll think about it: no pressure. Find out if there is a real concern ("Is there anything specific you\'re unsure about?"). If they just want time, give it and plan a sensible follow-up.\n'+
+'Send me something: never a generic brochure. Offer something specific to their business and ask what they most want to improve — unless enough context already exists, in which case send the relevant thing.\n'+
+'Price objection: never discount immediately. Work out whether it is budget, perceived value, timing, scope or trust ("Is the concern mainly the investment itself, or you\'re not sure it\'s worth it for your business?"). Never "we can make it cheaper".\n'+
+'Agency skepticism: do not defend agencies or make unsupported claims. Acknowledge it and differentiate through the conversation ("Fair. I\'m not interested in selling you something you don\'t need either. That\'s why I usually look at the business first.").'],
+  ['followup','Follow-Up Strategy',
+'Never send "just following up", "checking in", "circling back" or "any thoughts?".\n'+
+'Every follow-up adds context, value or a legitimate new reason to reopen the conversation, e.g. "One thing I noticed after looking at your setup again…", "I actually wouldn\'t recommend the website route based on what I saw. There\'s another part I\'d fix first.", "Found something in your current customer flow that might be worth showing you."\n'+
+'It should feel like a new reason to respond, not pressure. Do not follow up endlessly. If someone clearly declines, stop.'],
+  ['qualification','Qualification Rules',
+'Real buying signals: asked about price, asked what NONMAJORITY DIGITAL does, asked for examples, asked for a website, asked for information, mentioned a problem, lead volume, missed inquiries, booking problems or lack of time, asked about automation, CRM or AI, asked to see something, asked to talk, asked how the process works.\n'+
+'These matter more than simple engagement. Update the lead\'s qualification when strong signals appear. Never mark someone hot just because they replied.'],
+  ['hot','Hot Lead Rules',
+'A hot lead gets a faster, more direct reply with a clear next step and fewer questions.\n'+
+'"How much?" → give useful information. "Can you build this?" → answer directly. "Yeah, let\'s talk." → move to scheduling.\n'+
+'Do not keep asking discovery questions after the prospect has clearly asked for the next step.'],
+  ['tone','Tone / Voice',
+'Calm, direct, confident, observant, concise, human, slightly exclusive. Never arrogant, never desperate, never robotic.\n'+
+'Write like a founder talking to another business owner — not a call centre, not an agency template, not an AI assistant.\n'+
+'Preferred language: "noticed", "curious", "looks like", "what happens when", "are you currently", "worth showing you", "if there\'s actually an opportunity", "if it makes sense".\n'+
+'No more than one emoji, and usually none. No corporate jargon.'],
+  ['forbidden','Forbidden Language',
+'Generic compliments: "Love your page!", "I came across your amazing business!", "I help businesses like yours grow!", "I\'d love to connect!", "Would you be interested in learning more?"\n'+
+'Hype: amazing, incredible, revolutionary, game-changing, 10x, skyrocket, guaranteed, dominate, crush, scale to the moon.\n'+
+'Chasing: "just following up", "checking in", "circling back", "any thoughts?", "but hear me out", "can I just explain", "you don\'t understand", "most businesses say that", "we can make it cheaper".\n'+
+'Obvious agency language of any kind.'],
+  ['custom','Custom Business Instructions','']
+];
+function blankSales(){ var o={enabled:true}; SALES_FIELDS.forEach(function(f){ o[f[0]]=f[2]; }); return o; }
 function blankTraining(){
   return {
     id:'training',
@@ -14490,6 +14918,7 @@ function blankTraining(){
     goals:[],
     pillars:[],
     groups:[],
+    sales:blankSales(),
     updated:''
   };
 }
@@ -15026,6 +15455,12 @@ PARTS.sales=function(){
     .forEach(function(e){ out.push('- ON-BRAND SALES EXAMPLE: '+clip(oneLine(e.text),400)); });
   out=trim(out,1500); return {label:'Sales knowledge',lines:out,n:out.length,tag:'user-provided'};
 };
+PARTS.playbook=function(){
+  var s=T().sales, out=[];
+  if(s.enabled===false) return {label:'Sales & DM playbook',lines:[],n:0,tag:'switched off by the user'};
+  SALES_FIELDS.forEach(function(f){ if(has(s[f[0]])) out.push('# '+f[1].toUpperCase()+'\n'+str(s[f[0]]).trim()); });
+  return {label:'Sales & DM playbook',lines:out,n:out.length,tag:'explicit user instructions, always follow'};
+};
 PARTS.learnings=function(opts){
   var cats=(opts&&opts.learnCats)||['voice','audience','content','business','other'];
   var q=tokens((opts&&opts.query)||'');
@@ -15075,12 +15510,12 @@ var PROFILES={
   script:['business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations'],
   recommend:['personal','business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations'],
   content:['business','audience','brand','rules','pillars','goals','learnings','performance','optimizations'],
-  sales:['business','audience','brand','sales','rules','goals','learnings'],
+  sales:['playbook','business','audience','brand','sales','rules','goals','learnings'],
   general:['personal','business','rules','goals','learnings','optimizations'],
   learn:['brand','rules'],
   film:['business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations']
 };
-var PART_KEY_LABEL={personal:'About you',business:'Business',audience:'Audience',brand:'Brand voice',rules:'Content rules',
+var PART_KEY_LABEL={playbook:'Sales & DM playbook',personal:'About you',business:'Business',audience:'Audience',brand:'Brand voice',rules:'Content rules',
   pillars:'Content pillars',goals:'Goals',sales:'Sales knowledge',learnings:'Approved learnings',past:'Past scripts',
   performance:'Performance data',optimizations:'Current optimizations'};
 var HIERARCHY=
@@ -15369,6 +15804,11 @@ function healthCategories(){
     return {goodScript:'Add a script you consider on-brand.',goodCaption:'Add a caption you consider on-brand.',threeGood:'Add three examples of content you consider on-brand.',
       bad:'Add an example of writing that is NOT you, so the AI knows what to avoid.',brand:'Add a piece of brand messaging.'}[m[0]];
   });
+  var sp2=t.sales;
+  cat('playbook','Sales Playbook','aitraining.sales',SALES_FIELDS.map(function(f){ return [f[0],sp2.enabled!==false&&has(sp2[f[0]])]; }),function(m){
+    if(sp2.enabled===false) return 'Turn the Sales & DM Playbook back on so lead outreach follows it.';
+    return 'Fill in "'+(SALES_FIELDS.filter(function(f){ return f[0]===m[0]; })[0]||[0,m[0]])[1]+'" in the Sales & DM Playbook.';
+  });
   var enabled=enabledInstructions();
   cat('instructions','Instructions','training.rules',[
     ['one',enabled.length>=1],['crit',enabled.some(function(i){ return i.priority==='CRITICAL'; })],['three',enabled.length>=3],
@@ -15378,7 +15818,7 @@ function healthCategories(){
   });
   return out;
 }
-var HEALTH_ORDER=['business','voice','audience','examples','instructions','goals','sales','content'];
+var HEALTH_ORDER=['business','voice','audience','examples','instructions','goals','playbook','sales','content'];
 function nextBestTraining(){
   var cats=healthCategories().filter(function(c){ return c.ratio<1; });
   if(!cats.length) return null;
@@ -16486,7 +16926,8 @@ var TRAIN_PAGES={
   rules:{title:'Content Rules',desc:'Rules the AI must follow every time it writes for you, plus the content pillars that organise your topics.',cat:'instructions'},
   goals:{title:'Goals',desc:'What you are trying to achieve. The AI steers scripts and recommendations toward your active goals.',cat:'goals'},
   examples:{title:'Examples',desc:'Real examples teach the AI faster than descriptions. Nothing is learned from an example until you approve it.',cat:'examples'},
-  custom:{title:'Custom Instructions',desc:'Free-form instructions on how you want the AI to behave. Use as many as you like and switch any of them off.',cat:null}
+  custom:{title:'Custom Instructions',desc:'Free-form instructions on how you want the AI to behave. Use as many as you like and switch any of them off.',cat:null},
+  sales:{title:'Sales & DM Playbook',desc:'How you sell. Every lead AI action follows this: Instagram DMs and replies, prospect research, objections, follow-ups, sales ammo, email, text and call scripts.',cat:'playbook'}
 };
 function trainHead(key){
   var p=TRAIN_PAGES[key], hc=p.cat?healthCategories().filter(function(c){ return c.key===p.cat; })[0]:null;
@@ -16530,6 +16971,7 @@ function pgTrain(key){
   else if(key==='goals') h=goalsPage();
   else if(key==='examples') h=examplesPage();
   else if(key==='custom') h=customPage();
+  else if(key==='sales') h=salesPage();
   return wrap(h);
 }
 function rulesPage(){
@@ -16594,6 +17036,17 @@ function examplesPage(){
   }).join('');
   return h;
 }
+function salesPage(){
+  var s=T().sales, off=s.enabled===false, h=trainHead('sales');
+  h+='<div class="card"><div class="nm-row" style="justify-content:space-between"><p class="hint" style="margin:0;flex:1 1 260px">'+
+    (off?'Switched off — lead AI actions are not using it.':'In use. The AI reads it as your explicit instructions and decides each reply from the conversation — these are rules and examples, not canned answers.')+'</p>'+
+    '<div class="nm-row">'+pill(off?'OFF':'IN USE',off?'flat':'good')+B(off?'Turn on':'Turn off','salesToggle',null,null,off?'pri':'')+'</div></div></div>';
+  h+='<div class="card">'+SALES_FIELDS.map(function(f,i){
+    return '<label class="field"><span>'+(i+1)+'. '+esc(f[1])+'</span><textarea data-nmf="sales.'+f[0]+'" rows="'+(f[0]==='custom'?5:8)+'"'+
+      (f[0]==='custom'?' placeholder="Anything specific to how you sell: price ranges you are comfortable quoting, service areas, offers, who you never contact."':'')+'>'+esc(s[f[0]])+'</textarea></label>';
+  }).join('')+'</div>';
+  return h;
+}
 function customPage(){
   var t=T(), h=trainHead('custom');
   h+='<div class="nm-row" style="margin-bottom:12px">'+B('+ Add instructions','groupAdd',null,null,'pri')+'</div>';
@@ -16618,6 +17071,7 @@ function noteEdit(section){
 function applyField(path,val){
   var p=path.split('.'), t=T(), n=S();
   if(p[0]==='about'||p[0]==='audience'||p[0]==='voice'){ t[p[0]][p[1]]=val; noteEdit(p[0]); }
+  else if(p[0]==='sales'){ t.sales[p[1]]=val; noteEdit('sales'); }
   else if(p[0]==='business'){ bizSet(p[1],val); noteEdit('business'); }
   else if(p[0]==='bizc'){ var c=t.business.custom.filter(function(x){ return x.id===p[1]; })[0]; if(c) c[p[2]]=val; noteEdit('business'); }
   else if(p[0]==='pillar'){ var pl=t.pillars.filter(function(x){ return x.id===p[1]; })[0]; if(pl) pl[p[2]]=val; noteEdit('rules'); }
@@ -16730,7 +17184,7 @@ function exportTraining(){
 var RESET_TEXT={about:'This clears everything on About Me.',business:'This clears every field on Business Knowledge — including the same fields in AI Memory — and all additional entries.',
   audience:'This clears every audience field.',voice:'This clears your voice styles and every brand voice field.',rules:'This deletes all content rules and content pillars.',
   goals:'This deletes all goals.',examples:'This deletes all saved examples. Learnings already approved from them are kept — remove those under AI Intelligence.',
-  custom:'This deletes all custom instructions.',all:'This clears everything you provided: About Me, Business Knowledge (including the same fields in AI Memory), Audience, Brand Voice, Content Rules, Pillars, Goals, Examples and Custom Instructions. AI memory is kept.'};
+  custom:'This deletes all custom instructions.',sales:'This puts all twelve Sales & DM Playbook areas back to the NONMAJORITY DIGITAL defaults.',all:'This clears everything you provided: About Me, Business Knowledge (including the same fields in AI Memory), Audience, Brand Voice, Content Rules, Pillars, Goals, Examples and Custom Instructions, and puts the Sales & DM Playbook back to its defaults. AI memory is kept.'};
 function resetAsk(key){
   L.modal('<h3>Reset '+(key==='all'?'all AI training':esc((TRAIN_PAGES[key]||{title:key}).title))+'?</h3><p class="lede">'+esc(RESET_TEXT[key]||'')+' This cannot be undone.</p>'+
     '<div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" '+A('resetDo',key)+'>Reset</button></div>');
@@ -16746,8 +17200,9 @@ function resetDo(key){
     else if(k==='goals') t.goals=[];
     else if(k==='examples') n.examples=[];
     else if(k==='custom') t.groups=[];
+    else if(k==='sales') t.sales=b.sales;
   }
-  if(key==='all') ['about','business','audience','voice','rules','goals','examples','custom'].forEach(one); else one(key);
+  if(key==='all') ['about','business','audience','voice','rules','goals','examples','custom','sales'].forEach(one); else one(key);
   touchTraining(); logEvent('reset',key==='all'?'All AI training reset':(TRAIN_PAGES[key]||{title:key}).title+' reset','You cleared this section.','Privacy & control');
   L.save(); L.closeModal(); rerender(); L.toast('Reset');
 }
@@ -17021,7 +17476,7 @@ function expLearn(id){
 }
 
 /* ---------- AI recommendations ---------- */
-var REC_PAGES=['aitraining.about','aitraining.business','aitraining.audience','aitraining.voice','aitraining.rules','aitraining.goals','aitraining.examples','aitraining.custom','aitraining.health',
+var REC_PAGES=['aitraining.about','aitraining.business','aitraining.audience','aitraining.voice','aitraining.rules','aitraining.goals','aitraining.examples','aitraining.custom','aitraining.sales','aitraining.health',
   'content.studio','content.cmideas','content.scripts','content.calendar','content.analytics','content.intel','aiintel.learned'];
 function pgRecs(){
   var list=buildRecommendations(), f=U.recF||'open', td=today();
@@ -17146,7 +17601,7 @@ defAction('proposeLearning','draft','Propose something the AI has noticed about 
 var CU=IA.CUSTOM;
 CU.csCommand=pgCommand; CU.csIdeas=pgIdeas; CU.csScripts=pgScripts; CU.contentCal=pgCalendar; CU.csPost=pgPost; CU.csFilm=pgFilm;
 CU.csAnalytics=pgAnalytics; CU.csIntel=pgIntel; CU.csProduction=pgProduction;
-['about','business','audience','voice','rules','goals','examples','custom'].forEach(function(k){ CU['trn_'+k]=function(){ return pgTrain(k); }; });
+['about','business','audience','voice','rules','goals','examples','custom','sales'].forEach(function(k){ CU['trn_'+k]=function(){ return pgTrain(k); }; });
 CU.trn_health=pgHealth; CU.ai_learned=pgLearned; CU.ai_opt=pgOptimizing; CU.ai_log=pgLog; CU.ai_exp=pgExperiments; CU.ai_recs=pgRecs;
 
 var contentSec=IA.sectionById('content');
@@ -17185,7 +17640,7 @@ if(!IA.sectionById('aitraining')){
     {id:'aitraining',icon:'✎',label:'AI Training',short:'Train',desc:'Teach the AI about you, your business, your audience and your voice',ai:'What does my AI know about my business?',pages:[
       {id:'about',label:'About Me',custom:'trn_about'},{id:'business',label:'Business',custom:'trn_business'},{id:'audience',label:'Audience',custom:'trn_audience'},
       {id:'voice',label:'Brand Voice',custom:'trn_voice'},{id:'rules',label:'Content Rules',custom:'trn_rules'},{id:'goals',label:'Goals',custom:'trn_goals'},
-      {id:'examples',label:'Examples',custom:'trn_examples'},{id:'custom',label:'Custom Instructions',custom:'trn_custom'},{id:'health',label:'Training Health',custom:'trn_health'}]},
+      {id:'examples',label:'Examples',custom:'trn_examples'},{id:'custom',label:'Custom Instructions',custom:'trn_custom'},{id:'sales',label:'Sales Playbook',custom:'trn_sales'},{id:'health',label:'Training Health',custom:'trn_health'}]},
     {id:'aiintel',icon:'✧',label:'AI Intelligence',short:'Insight',desc:'What the AI has learned, what it is working on, and why',ai:'What have you learned about my content?',pages:[
       {id:'learned',label:'What AI Learned',custom:'ai_learned'},{id:'optimizing',label:'Currently Optimizing',custom:'ai_opt'},{id:'log',label:'Learning Log',custom:'ai_log'},
       {id:'experiments',label:'Experiments',custom:'ai_exp'},{id:'recs',label:'Recommendations',custom:'ai_recs'},{id:'health',label:'Training Health',custom:'trn_health'}]});
@@ -17373,6 +17828,7 @@ document.addEventListener('click',function(e){
     teachSyncDom(); (U.teach&&U.teach.items||[]).forEach(function(it,i){ if(it.state==='pending'&&has(it.text)) teachApprove(i); }); break;
   case 'groupAdd': T().groups.push({id:uid('gr'),name:'',text:'',enabled:true}); L.save(); rerender(); break;
   case 'groupStarter': T().groups.push({id:uid('gr'),name:'How I want you to write',text:STARTER_CUSTOM,enabled:true}); L.save(); rerender(); break;
+  case 'salesToggle': T().sales.enabled=T().sales.enabled===false; touchTraining(); logEvent('training_updated','Sales & DM Playbook '+(T().sales.enabled?'turned on':'turned off'),'','AI Training','sales'); L.save(); rerender(); break;
   case 'groupToggle': o=T().groups.filter(function(q){ return q.id===a; })[0]; if(o){ o.enabled=o.enabled===false; L.save(); rerender(); } break;
   case 'groupDel': T().groups=T().groups.filter(function(q){ return q.id!==a; }); L.save(); rerender(); break;
   case 'exportTraining': exportTraining(); break;
