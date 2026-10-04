@@ -846,6 +846,78 @@ button.stat:hover:after{opacity:1;transform:none;background:var(--accent)}
 .lw-intake .lw-msg{max-height:480px;overflow-y:auto;padding:16px 18px;border-radius:var(--r-m);background:var(--bg-2);border:1px solid var(--line-soft)}
 .lw-intake pre.plain{margin:0;font-size:14px;line-height:1.7;color:var(--ink)}
 
+/* research & intelligence — same cards, pills and buttons as the rest of the lead page */
+.rs .rs-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-2px 0 12px}
+.rs .rs-bar .meta{flex:1;min-width:200px;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.rs .rs-bar .meta small{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-3)}
+.rs-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink-4);flex:0 0 7px}
+.pill.rs-run .rs-dot,.pill.rs-ok .rs-dot{background:var(--accent)}
+.pill.rs-run .rs-dot{animation:rsPulse 1.3s ease-in-out infinite}
+.pill.rs-bad .rs-dot{background:var(--bad)}
+.pill.rs-warn .rs-dot{background:var(--warn)}
+.pill.rs-run{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.pill.rs-ok{color:var(--ink-2)}
+.pill.rs-bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 30%,var(--line-soft))}
+.pill.rs-warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,var(--line-soft))}
+@keyframes rsPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@media(prefers-reduced-motion:reduce){.pill.rs-run .rs-dot{animation:none}}
+.rs-steps{display:flex;gap:6px;margin:10px 0 2px}
+.rs-steps i{flex:1;height:3px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
+.rs-steps i.on{background:var(--accent)}
+.rs-steps i.now:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:rsSlide 1.4s linear infinite}
+@keyframes rsSlide{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.rs-brief{margin:4px 0 12px;padding:14px 16px;border-radius:var(--r-m);background:var(--accent-soft);border:1px solid var(--accent-line)}
+.rs-brief .k{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.rs-brief .h{margin-top:6px;font-family:var(--font-d);font-size:17px;font-weight:600;letter-spacing:-.012em;color:var(--ink);line-height:1.35}
+.rs-brief .w{margin-top:6px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.rs-brief .n{margin-top:10px;padding-top:10px;border-top:1px solid var(--accent-line);font-size:13px;color:var(--ink-2)}
+.rs-brief .n b{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:6px}
+.rs-tabs{margin:8px 0 14px}
+.rs-tabs button .c{margin-left:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-4)}
+.rs-tabs button.on .c{color:var(--accent)}
+.rs-sec+.rs-sec{margin-top:18px}
+.rs-sec>h4{margin:0 0 8px;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.rs-p{margin:0;font-size:14px;line-height:1.65;color:var(--ink)}
+.rs-p.dim{color:var(--ink-3)}
+.rs-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media(min-width:760px){.rs-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rs-item{padding:12px 14px;border-radius:var(--r-m);background:var(--bg-2);border:1px solid var(--line-soft);min-width:0}
+.rs-item .t{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rs-item .t b{flex:1;min-width:140px;font-size:14px;font-weight:600;color:var(--ink);line-height:1.4}
+.rs-item .row{margin-top:6px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.rs-item .row i{font-style:normal;display:block;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:1px}
+.rs-list{list-style:none;margin:0;padding:0}
+.rs-list li{position:relative;padding:8px 0 8px 18px;font-size:14px;line-height:1.6;color:var(--ink);border-bottom:1px solid var(--line-soft)}
+.rs-list li:last-child{border-bottom:0}
+.rs-list li:before{content:"";position:absolute;left:3px;top:17px;width:7px;height:1px;background:var(--accent)}
+.rs-list.num{counter-reset:rs}
+.rs-list.num li:before{counter-increment:rs;content:counter(rs);width:auto;height:auto;background:none;top:9px;left:0;font-family:var(--mono);font-size:10.5px;color:var(--accent)}
+.rs-ev{display:inline-flex;align-items:center;min-height:18px;padding:0 5px;margin:0 3px 3px 0;border-radius:4px;font-family:var(--mono);font-size:10px;color:var(--ink-3);background:var(--surface-2);border:1px solid var(--line-soft);cursor:help}
+.rs-ev.W{color:var(--accent)}
+.rs-evs{margin-top:8px}
+.rs-dim{width:100%;border-collapse:collapse}
+.rs-dim td{padding:9px 0;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.rs-dim tr:last-child td{border-bottom:0}
+.rs-dim td:first-child{width:150px;padding-right:12px;font-weight:600;color:var(--ink)}
+.rs-dim td:nth-child(2){width:96px;padding-right:12px}
+@media(max-width:719px){.rs-dim td:first-child{width:96px}.rs-dim td:nth-child(2){width:78px}}
+.rs-hook{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.rs-hook:last-child{border-bottom:0}
+.rs-hook .k{flex:0 0 84px;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:3px}
+.rs-hook .v{flex:1;min-width:0;font-size:14px;line-height:1.6;color:var(--ink)}
+.rs-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.rs-src{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-size:13px;color:var(--ink-2);word-break:break-word}
+.rs-src .okdot{margin-top:5px}
+.rs-src a{color:var(--accent)}
+.rs-hist{width:100%;border-collapse:collapse}
+.rs-hist th{text-align:left;padding:0 10px 8px 0;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
+.rs-hist td{padding:9px 10px 9px 0;border-top:1px solid var(--line-soft);font-size:13px;color:var(--ink-2);vertical-align:top}
+.rs-hist .err{display:block;margin-top:3px;font-size:12.5px;color:var(--bad)}
+.rs-wrap{overflow-x:auto}
+.rs-viewing{margin:0 0 12px;padding:10px 12px;border-radius:var(--r-m);background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 24%,var(--line));font-size:13px;color:var(--ink-2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rs-viewing span{flex:1;min-width:160px}
+.rs-foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.55;color:var(--ink-3)}
+
 /* contact & facts */
 .kv .r{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line-soft);align-items:baseline}
 .kv .r:first-child{padding-top:2px}
@@ -5651,6 +5723,7 @@ function leadRow(x){
     '<div class="l2">'+esc(sub)+'</div>'+
     '<div class="l3">'+((t.k==='hot'||t.k==='high')?'<span class="pill '+t.k+'">'+t.label+'</span>':'')+
       (intake?'<span class="pill intake">Intake</span>':'')+
+      (window.LDRESEARCH?LDRESEARCH.pill(x):'')+
       (x.web&&x.web!=='unknown'?L.webPill(x):'')+(x.book&&x.book!=='unknown'?L.bookPill(x):'')+
       '<span class="pill flat">'+esc(x.stage||'New')+'</span></div></button>';
 }
@@ -6363,9 +6436,11 @@ function openLead(id){
   $('#sheet').classList.remove('closing');
   $('#sheet').classList.add('open');
   document.body.style.overflow='hidden';
+  if(window.LDRESEARCH) try{ LDRESEARCH.onOpen(id); }catch(e){}
 }
 function closeLead(){
   state.open=null;
+  if(window.LDRESEARCH) try{ LDRESEARCH.onClose(); }catch(e){}
   var __sh=$('#sheet'), __was=__sh.classList.contains('open'); __sh.classList.remove('open');
   if(__was&&!(window.LDV&&window.LDV.REDUCED)){ __sh.classList.add('closing'); setTimeout(function(){ __sh.classList.remove('closing'); },420); }
   document.body.style.overflow='';
@@ -6432,12 +6507,15 @@ function renderSheet(){
        '<div class="lw-msg"><pre class="plain">'+esc(x.message)+'</pre></div></div>';
   }
 
+  /* research & intelligence — filled in by the Worker for new website leads, or by the Research button */
+  if(window.LDRESEARCH){ try{ h+=LDRESEARCH.card(x); }catch(e){} }
+
   /* AI outreach */
   h+='<div class="card"><div class="lw-h"><h3>Write the outreach</h3>'+
      (ready?'':'<span class="pill flat">AI offline</span>')+'</div>'+
      (ready?'':'<p class="hint" style="margin:-6px 0 12px">Connect the AI in Settings to turn these on.</p>')+
      '<div class="aigrid">'+
-     aib('email',ICO.mail,'Email')+aib('text',ICO.chat,'Text')+aib('call',ICO.phone,'Call script')+
+     aib('email',ICO.mail,'Email')+aib('text',ICO.chat,'Text')+aib('dm',ICO.chat,'Instagram DM')+aib('call',ICO.phone,'Call script')+
      aib('ammo',ICO.target,'Sales ammo')+aib('follow',ICO.loop,'Follow-up')+aib('object',ICO.shield,'Objections')+
      '</div>';
   var g=state.gen[x.id];
@@ -6587,6 +6665,8 @@ function leadFacts(x){
   p('Next follow-up planned',x.nextFollow?L.fmtDate(x.nextFollow):'');
   if(x.ammo.length) p('Existing talking points',x.ammo.join(' | '));
   if(x.notes.length) f.push('My notes (newest first):\n'+x.notes.slice(0,8).map(function(n){ return '  ['+L.fmtDate(n.t)+'] '+n.text; }).join('\n'));
+  var rb=window.LDRESEARCH?LDRESEARCH.brief(x):'';
+  if(rb) f.push('\n'+rb);
   return f.join('\n');
 }
 function meBlock(){
@@ -6616,6 +6696,8 @@ var TASKS={
     'The body opens by naming the business and one specific true thing from the record. One sentence on what a website or booking page would change for their customers. One simple question as the close, like asking if they want to see a quick example. Sign off with my name and business only if I provided them.'},
   text:{title:'Text message',prompt:
     'Write one SMS. Two or three sentences, under 320 characters. Say who I am, name their business, one concrete reason I reached out, and one easy question. No links unless my website is in my details. No emojis.'},
+  dm:{title:'Instagram DM',prompt:
+    'Write one Instagram DM. Under 60 words, casual, human. One specific true thing from the record about their business, then one easy question. No links, no emojis unless my style calls for it.'},
   call:{title:'Cold call script',prompt:
     'Write a cold call opener in five short labelled parts:\n\nGREETING\nREASON FOR CALLING\nWHAT I NOTICED\nTHE OPPORTUNITY\nMY QUESTION\n\n'+
     'Each part is one or two spoken sentences, written the way a person actually talks on the phone. Then add a line break and:\n\nIF THEY SAY NO RIGHT AWAY\n<one short graceful exit that leaves the door open>'},
@@ -6652,12 +6734,16 @@ function generate(kind){
   state.gen[x.id]={title:task.title,text:'',busy:true,kind:kind};
   renderSheet();
 
+  /* if this lead has finished research the full brief is fetched first, so the draft uses it */
+  var R=window.LDRESEARCH, pre=(R&&R.needsHydrate(x))?R.hydrate(x.id).catch(function(){}):Promise.resolve();
+  pre.then(function(){
+  var rp=R?R.promptFor(x,kind):null;
   var msg='LEAD RECORD\n'+leadFacts(x)+'\n\nABOUT ME\n'+meBlock()+
           '\n\nSTYLE\n'+(DB.settings.tone||'Direct and friendly. Short sentences.')+
-          '\n\nTASK\n'+task.prompt;
+          '\n\nTASK\n'+(rp?rp.task.prompt:task.prompt);
 
-  window.LDNET.chat({task:'write',feature:'outreach_'+kind,system:SYS,
-    messages:[{role:'user',content:msg}],maxTokens:1200}).then(function(rr){
+  return window.LDNET.chat({task:'write',feature:'outreach_'+kind,system:rp?rp.system:SYS,
+    messages:[{role:'user',content:msg}],maxTokens:1200}); }).then(function(rr){
     var out=rr.text;
     state.gen[x.id]={title:task.title,text:out,busy:false,kind:kind};
     if(kind==='ammo'){
@@ -10215,6 +10301,447 @@ window.LDCLOUD={
    save() itself is never touched, only wrapped */
 var _saveCloud=L.save;
 L.save=function(){ _saveCloud.apply(this,arguments); try{ diffAndQueue(); }catch(e){} try{ diffAndQueueContacts(); }catch(e){} try{ diffAndQueueTasks(); }catch(e){} try{ diffAndQueueCalEvents(); }catch(e){} try{ diffAndQueueAppts(); }catch(e){} try{ diffAndQueueConversations(); }catch(e){} try{ diffAndQueueMessages(); }catch(e){} try{ diffAndQueueTemplates(); }catch(e){} try{ diffAndQueueFollowUps(); }catch(e){} };
+})();
+
+/* ============================================================
+   RESEARCH — business research for leads (runs on the Worker)
+   New website leads are researched by the server on their own.
+   This module shows the result on the lead page, runs / retries /
+   refreshes it, and gives the existing AI buttons the brief.
+   Nothing here sends anything to anyone.
+   ============================================================ */
+(function(){
+"use strict";
+var L=window.LD, DB=L.DB, state=L.state, $=L.$, esc=L.esc;
+var STALE_DAYS=30;
+var S={byId:{},tab:{},view:{},starting:{},err:{},poll:null,pollId:null,pollSince:0,lastPull:0};
+var TABS=[['business','Business'],['opps','Opportunities'],['approach','Approach'],['ammo','Sales ammo'],['discovery','Discovery'],
+          ['objections','Objections'],['followup','Follow-up'],['outreach','Outreach'],['history','History']];
+var FIT={strong_opportunity:['Strong opportunity','hot'],potential_fit:['Potential fit','high'],secondary_opportunity:['Secondary','med'],
+         low_priority:['Low priority','low'],needs_more_information:['Needs more info','flat']};
+var ASSESS={strong:['Strong','hot'],adequate:['Adequate','med'],weak:['Weak','rs-warn'],missing:['Missing','rs-bad'],unverified:['Unverified','flat']};
+var CONF={verified:['Verified','hot'],inferred:['Inferred','med'],unverified:['Unverified','flat']};
+var TRIG={auto:'Automatic',manual:'Manual',retry:'Retry',refresh:'Refresh'};
+var STAGES=['evidence','analysis','sales'];
+var STAGE_TXT={evidence:'Reading their website and searching the web',analysis:'Analysing the business',sales:'Writing the sales intelligence'};
+
+/* ---------- talking to the worker ---------- */
+function cloud(){ return (window.LDCLOUD&&LDCLOUD.ready())?LDCLOUD.cfg():null; }
+function api(method,path,body){
+  var c=cloud();
+  if(!c) return Promise.reject(new Error('Connect Cloud Sync in Settings to use research.'));
+  var opt={method:method,headers:{'Authorization':'Bearer '+c.token}};
+  if(body!==undefined){ opt.headers['Content-Type']='application/json'; opt.body=JSON.stringify(body); }
+  return fetch(c.apiUrl.replace(/\/+$/,'')+path,opt).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=JSON.parse(t); }catch(e){}
+      if(!r.ok){ var er=new Error((d&&d.error)||('Request failed ('+r.status+')')); er.status=r.status; throw er; }
+      return d||{};
+    });
+  });
+}
+
+/* ---------- what do we know about a lead's research? ---------- */
+function ts(s){ var n=Date.parse(s||''); return isNaN(n)?0:n; }
+function cur(x){
+  if(!x) return null;
+  var a=x.research||null, c=S.byId[x.id], b=c&&c.research||null;
+  if(a&&b) return ts(b.progress_at)>=ts(a.progress_at)?b:a;
+  return b||a||null;
+}
+function stalled(r){
+  if(!r||r.status!=='researching') return false;
+  if(r.lease_until&&ts(r.lease_until)>Date.now()) return false;
+  return Date.now()-ts(r.progress_at||r.started_at)>45000;
+}
+function stale(r){
+  if(!r||r.status!=='complete') return false;
+  var due=r.refresh_after?ts(r.refresh_after):ts(r.completed_at)+STALE_DAYS*864e5;
+  return Date.now()>due;
+}
+function uiState(r){
+  if(!r) return 'none';
+  if(r.status==='researching') return stalled(r)?'stalled':'running';
+  if(r.status==='complete') return stale(r)?'stale':'complete';
+  return r.status||'none';
+}
+var LABEL={none:'Not researched',pending:'Research pending',running:'Researching',stalled:'Researching · paused',complete:'Research complete',
+           stale:'Needs refresh',needs_refresh:'Needs refresh',failed:'Research failed',insufficient:'Needs more info'};
+var PILL={none:'flat',pending:'',running:'rs-run',stalled:'rs-warn',complete:'rs-ok',stale:'rs-warn',needs_refresh:'rs-warn',failed:'rs-bad',insufficient:'rs-warn'};
+function fmtWhen(s){
+  if(!s) return '';
+  var d=new Date(s); if(isNaN(d)) return '';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+', '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function fmtDur(ms){ ms=+ms||0; if(ms<1000) return '—'; var s=Math.round(ms/1000); return s<90?s+'s':Math.round(s/60)+' min'; }
+function money(n){ n=+n||0; return n?'$'+n.toFixed(n<0.1?3:2):'—'; }
+
+/* a small status pill for the leads list */
+function pill(x){
+  var r=cur(x); if(!r) return '';
+  var st=uiState(r);
+  if(st==='none'||st==='insufficient') return '';
+  return '<span class="pill '+PILL[st]+'"><span class="rs-dot"></span>'+esc(LABEL[st])+'</span>';
+}
+
+/* ---------- hydrate (full result), poll, seed ---------- */
+function repaint(id){
+  if(state.open!==id) return;
+  var el=$('#rsCard'), x=L.find(id); if(!el||!x) return;
+  var tmp=document.createElement('div'); tmp.innerHTML=card(x);
+  var next=tmp.firstChild; if(next) el.parentNode.replaceChild(next,el);
+}
+function hydrate(id){
+  if(!cloud()) return Promise.resolve(null);
+  return api('GET','/v1/leads/'+encodeURIComponent(id)+'/research').then(function(d){
+    var prev=S.byId[id]&&S.byId[id].research;
+    S.byId[id]={research:d.research||null,history:d.history||[],caps:d.caps||null,ts:Date.now()};
+    S.err[id]='';
+    afterUpdate(id,prev,d.research);
+    return d;
+  }).catch(function(e){ S.err[id]=String(e.message||e); repaint(id); return null; });
+}
+function afterUpdate(id,prev,now){
+  var justDone=now&&now.status==='complete'&&(!prev||prev.status!=='complete'||prev.completed_at!==now.completed_at);
+  if(justDone){
+    var wasRunning=prev&&(prev.status==='researching'||prev.status==='pending');
+    seedAmmo(id);
+    if(wasRunning){ L.toast('Research complete'); }
+    if(state.open===id) L.renderSheet(); else L.render();
+    return;
+  }
+  repaint(id);
+}
+function wantPoll(id){
+  var x=L.find(id); if(!x) return false;
+  var r=cur(x); if(!r) return false;
+  if(r.status==='researching') return true;
+  return r.status==='pending'&&!r.note&&r.trigger==='auto'&&Date.now()-ts(r.queued_at)<3*60000;
+}
+function stopPoll(){ if(S.poll){ clearInterval(S.poll); S.poll=null; S.pollId=null; } }
+function startPoll(id){
+  stopPoll(); S.pollId=id; S.pollSince=Date.now();
+  S.poll=setInterval(function(){
+    if(state.open!==id||Date.now()-S.pollSince>10*60000){ stopPoll(); return; }
+    hydrate(id).then(function(){ if(!wantPoll(id)) stopPoll(); });
+  },5000);
+}
+function seedAmmo(id){
+  var x=L.find(id), c=S.byId[id], r=c&&c.research&&c.research.result;
+  if(!x||!r||!r.sales) return;
+  if((x.ammo||[]).length||x.ammoSeeded) return;
+  var pts=(r.sales.talking_points||[]).slice(0,5);
+  if(!pts.length) return;
+  x.ammo=pts; x.ammoSeeded='research'; L.save();
+}
+function onOpen(id){
+  var x=L.find(id); if(!x) return;
+  if(!cloud()||!cur(x)) return;
+  hydrate(id).then(function(){ if(wantPoll(id)) startPoll(id); });
+  if(wantPoll(id)) startPoll(id);
+}
+function onClose(){ stopPoll(); }
+
+/* ---------- actions ---------- */
+function start(id){
+  var x=L.find(id); if(!x) return;
+  var st=uiState(cur(x)), trig='manual';
+  if(st==='failed') trig='retry'; else if(st==='complete'||st==='stale'||st==='needs_refresh') trig='refresh';
+  S.starting[id]=true; S.err[id]='';
+  repaint(id);
+  var pre=(window.LDCLOUD&&LDCLOUD.flush)?LDCLOUD.flush():Promise.resolve();
+  Promise.resolve(pre).then(function(){
+    return api('POST','/v1/leads/'+encodeURIComponent(id)+'/research',{trigger:trig});
+  }).then(function(d){
+    S.starting[id]=false;
+    var c=S.byId[id]||{};
+    S.byId[id]=Object.assign({},c,{research:Object.assign({},c.research||{},d.research||{status:'researching'})});
+    return hydrate(id);
+  }).then(function(){
+    repaint(id); if(wantPoll(id)) startPoll(id);
+  }).catch(function(e){
+    S.starting[id]=false;
+    var m=String(e.message||e);
+    if(e.status===404) m='This lead has not reached the server yet. Wait a moment and try again.';
+    S.err[id]=m; repaint(id); L.toast(m);
+  });
+}
+function copyText(label,text){ L.copyText(text,label); }
+function lines(a){ return (a||[]).map(function(s){ return '• '+s; }).join('\n'); }
+function copyFor(x,what){
+  var r=shown(x).result; if(!r) return;
+  var s=r.sales||{}, f=r.follow_up||{}, o=r.outreach||{}, h=o.hooks||{};
+  if(what==='talking') return copyText('Sales ammo copied',lines(s.talking_points));
+  if(what==='discovery') return copyText('Discovery questions copied',(s.discovery_questions||[]).map(function(q,i){ return (i+1)+'. '+q; }).join('\n'));
+  if(what==='objections') return copyText('Objections copied',(s.likely_objections||[]).map(function(q){ return q.objection.toUpperCase()+'\n'+q.response; }).join('\n\n'));
+  if(what==='followup') return copyText('Follow-up plan copied','First angle: '+(f.first_angle||'')+'\nTiming: '+(f.timing||'')+'\n'+lines(f.reference_points));
+  if(what==='approach'){
+    var rec=r.recommendation||{}, b=[];
+    ['strongest','secondary','additional'].forEach(function(k){ if(rec[k]) b.push(k.toUpperCase()+': '+rec[k].service+' — '+rec[k].headline+'\n'+rec[k].why); });
+    b.push('OPENING: '+(s.opening_observation||''),'PAIN POINT: '+(s.pain_point||''),'OPPORTUNITY: '+(s.opportunity||''),'VALUE: '+(s.value_proposition||''),'NEXT STEP: '+(s.suggested_next_step||''));
+    return copyText('Approach copied',b.join('\n\n'));
+  }
+  if(what.indexOf('hook:')===0){ var k2=what.slice(5); return copyText('Copied',h[k2]||''); }
+}
+function addAmmo(id){
+  var x=L.find(id), r=shown(x).result; if(!x||!r||!r.sales) return;
+  var have=(x.ammo||[]).map(function(a){ return a.toLowerCase(); });
+  var add=(r.sales.talking_points||[]).filter(function(p){ return have.indexOf(p.toLowerCase())<0; });
+  if(!add.length){ L.toast('Already in your Sales ammo'); return; }
+  x.ammo=(x.ammo||[]).concat(add); L.save(); L.renderSheet(); L.toast('Added to Sales ammo');
+}
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-rs]'); if(!el) return;
+  var id=state.open, x=id&&L.find(id); if(!x) return;
+  var v=el.getAttribute('data-rs');
+  if(v==='start'){ start(id); return; }
+  if(v.indexOf('tab:')===0){ S.tab[id]=v.slice(4); repaint(id); return; }
+  if(v.indexOf('copy:')===0){ copyFor(x,v.slice(5)); return; }
+  if(v==='addammo'){ addAmmo(id); return; }
+  if(v.indexOf('view:')===0){ S.view[id]=v.slice(5); S.tab[id]='business'; repaint(id); return; }
+  if(v==='latest'){ delete S.view[id]; repaint(id); return; }
+});
+
+/* ---------- rendering ---------- */
+function shown(x){
+  var c=S.byId[x.id]||{}, base=c.research||{}, run=S.view[x.id];
+  if(run){
+    var h=(c.history||[]).filter(function(e){ return e.run_id===run; })[0];
+    if(h&&h.result) return {research:base,result:h.result,viewing:h,evidence:base.evidence||[]};
+  }
+  return {research:base,result:base.result||null,viewing:null,evidence:base.evidence||[]};
+}
+function evTags(ids,evs){
+  if(!ids||!ids.length) return '';
+  return '<div class="rs-evs">'+ids.map(function(i){
+    var e=(evs||[]).filter(function(z){ return z.id===i; })[0];
+    return '<span class="rs-ev '+i.charAt(0)+'" title="'+esc(e?(i+': '+e.text):i)+'">'+esc(i)+'</span>';
+  }).join('')+'</div>';
+}
+function lp(txt,cls){ return txt?'<p class="rs-p'+(cls?' '+cls:'')+'">'+esc(txt)+'</p>':''; }
+function sec(title,body){ return body?'<div class="rs-sec"><h4>'+esc(title)+'</h4>'+body+'</div>':''; }
+function ul(a,num){ a=(a||[]).filter(Boolean); return a.length?'<ul class="rs-list'+(num?' num':'')+'">'+a.map(function(s){ return '<li>'+esc(s)+'</li>'; }).join('')+'</ul>':''; }
+function row(k,v){ return v?'<div class="row"><i>'+esc(k)+'</i>'+esc(v)+'</div>':''; }
+function acts(parts){ return '<div class="rs-acts">'+parts.join('')+'</div>'; }
+function cbtn(what,label){ return '<button class="btn sm" data-rs="copy:'+what+'">'+esc(label||'Copy')+'</button>'; }
+function later(r,msg){ return r.sales?'':'<p class="rs-p dim">'+esc(msg||'Still writing this part of the research…')+'</p>'; }
+
+function tBusiness(sh){
+  var r=sh.result, sn=r.snapshot||{}, h='';
+  var kv=[['Business',sn.business_name],['Industry',sn.industry],['Location',sn.location],['What they sell',sn.what_they_sell],['Target customer',sn.target_customer],['Business model',sn.business_model]].filter(function(p){ return p[1]; });
+  if(kv.length) h+=sec('Business snapshot','<div class="kv">'+kv.map(function(p){ return '<div class="r"><div class="k">'+esc(p[0])+'</div><div class="v">'+esc(p[1])+'</div></div>'; }).join('')+'</div>');
+  if((sn.observations||[]).length) h+=sec('Observations','<ul class="rs-list">'+sn.observations.map(function(o){ return '<li>'+esc(o.text)+evTags(o.evidence,sh.evidence)+'</li>'; }).join('')+'</ul>');
+  h+=sec('Current digital presence','<div class="rs-wrap"><table class="rs-dim">'+(r.digital_presence||[]).map(function(d){
+    var a=ASSESS[d.assessment]||ASSESS.unverified;
+    return '<tr><td>'+esc(d.dimension)+'</td><td><span class="pill '+a[1]+'">'+a[0]+'</span></td><td>'+esc(d.finding)+evTags(d.evidence,sh.evidence)+'</td></tr>';
+  }).join('')+'</table></div>');
+  if((r.unverified||[]).length) h+=sec('Could not verify',ul(r.unverified));
+  var src=(sh.research.sources||[]).filter(function(s){ return s.type!=='intake'; });
+  if(src.length) h+=sec('Where this came from','<div>'+src.map(function(s){
+    var lab=s.url?'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc((s.label||s.url).slice(0,90))+'</a>':esc(s.label||'');
+    return '<div class="rs-src"><span class="okdot'+(s.ok?' ok':'')+'"></span><span>'+lab+(s.note&&!s.ok?' — '+esc(s.note):'')+'</span></div>';
+  }).join('')+'</div>');
+  return h;
+}
+function tOpps(sh){
+  var r=sh.result, h='';
+  if((r.findings||[]).length) h+=sec('Problems and opportunities','<div class="rs-grid">'+r.findings.map(function(f){
+    var c=CONF[f.confidence]||CONF.inferred, pr=f.priority==='high'?'hot':f.priority==='low'?'low':'med';
+    return '<div class="rs-item"><div class="t"><b>'+esc(f.title)+'</b><span class="pill '+pr+'">'+esc(f.priority)+' priority</span><span class="pill '+c[1]+'">'+c[0]+'</span></div>'+
+      row('Evidence',f.evidence_note)+row('Why it matters',f.why_it_matters)+row('Potential impact',f.potential_impact)+row('Potential solution',f.potential_solution)+evTags(f.evidence,sh.evidence)+'</div>';
+  }).join('')+'</div>');
+  if((r.service_fit||[]).length) h+=sec('Which NONMAJORITY services may fit','<div class="rs-grid">'+r.service_fit.map(function(s){
+    var f=FIT[s.fit]||FIT.needs_more_information;
+    return '<div class="rs-item"><div class="t"><b>'+esc(s.service)+'</b><span class="pill '+f[1]+'">'+f[0]+'</span></div>'+
+      row('Problem it solves',s.problem_solved)+row('Why it may matter',s.why_it_may_matter)+row('Potential approach',s.potential_approach)+row('Pitch angle',s.pitch_angle)+evTags(s.evidence,sh.evidence)+'</div>';
+  }).join('')+'</div>');
+  if((r.not_indicated||[]).length) h+=sec('Not indicated (no pitch needed)',ul(r.not_indicated.map(function(n){ return n.service+' — '+n.reason; })));
+  return h||'<p class="rs-p dim">No significant findings were supported by the evidence.</p>';
+}
+function tApproach(sh){
+  var r=sh.result, rec=r.recommendation||{}, s=r.sales||{}, h='';
+  var blocks=[['Strongest opportunity',rec.strongest],['Secondary opportunity',rec.secondary],['Additional opportunity',rec.additional]].filter(function(p){ return p[1]; });
+  if(blocks.length) h+=sec('Recommended approach (for you — you decide what to pitch)','<div class="rs-grid">'+blocks.map(function(p){
+    return '<div class="rs-item"><div class="t"><b>'+esc(p[1].service)+'</b><span class="pill flat">'+esc(p[0])+'</span></div>'+lp(p[1].headline)+row('Why',p[1].why)+'</div>';
+  }).join('')+'</div>');
+  else h+=sec('Recommended approach','<p class="rs-p dim">The evidence did not point to a clear service to lead with. Use the discovery questions to find out more.</p>');
+  h+=sec('Opening observation',lp(s.opening_observation))+sec('Pain point',lp(s.pain_point))+sec('Opportunity',lp(s.opportunity))+sec('Value proposition',lp(s.value_proposition))+sec('Suggested next step',lp(s.suggested_next_step));
+  return h+later(r)+acts([cbtn('approach','Copy approach')]);
+}
+function tAmmo(sh){
+  var s=sh.result.sales; if(!s) return later({}) ;
+  return sec('Talking points',ul(s.talking_points))+acts([cbtn('talking','Copy'),sh.viewing?'':'<button class="btn sm mint" data-rs="addammo">Add to my Sales ammo</button>']);
+}
+function tDiscovery(sh){ var s=sh.result.sales; if(!s) return later({}); return sec('Questions to confirm the problem',ul(s.discovery_questions,true))+acts([cbtn('discovery','Copy questions')]); }
+function tObjections(sh){
+  var s=sh.result.sales; if(!s) return later({});
+  var o=s.likely_objections||[];
+  if(!o.length) return '<p class="rs-p dim">No specific objections were identified.</p>';
+  return '<div class="rs-grid">'+o.map(function(x){ return '<div class="rs-item"><div class="t"><b>“'+esc(x.objection)+'”</b></div>'+row('Why it is likely',x.why_likely)+row('How you could respond',x.response)+'</div>'; }).join('')+'</div>'+acts([cbtn('objections','Copy objections')]);
+}
+function tFollow(sh){
+  var f=sh.result.follow_up; if(!f) return later({});
+  return sec('First follow-up angle',lp(f.first_angle))+sec('Timing',lp(f.timing))+sec('Things to refer back to',ul(f.reference_points))+acts([cbtn('followup','Copy plan')]);
+}
+function tOutreach(sh){
+  var o=sh.result.outreach; if(!o) return later({});
+  var h=sec('Angle',lp(o.angle))+sec('Tone',lp(o.tone))+sec('Avoid',ul(o.avoid));
+  var hk=o.hooks||{}, names=[['email','Email'],['text','Text'],['call','Call'],['instagram_dm','Instagram DM']];
+  h+=sec('Opening line by channel','<div>'+names.filter(function(n){ return hk[n[0]]; }).map(function(n){
+    return '<div class="rs-hook"><div class="k">'+n[1]+'</div><div class="v">'+esc(hk[n[0]])+'</div><button class="btn sm" data-rs="copy:hook:'+n[0]+'">Copy</button></div>';
+  }).join('')+'</div>');
+  return h+'<p class="hint">Nothing is sent automatically. The Email, Text, Instagram DM and Call script buttons below use this research when they write a draft.</p>';
+}
+function tHistory(x){
+  var c=S.byId[x.id]||{}, hist=c.history||[];
+  var h='';
+  if(!hist.length) h+='<p class="rs-p dim">No research has been run for this lead yet.</p>';
+  else h+='<div class="rs-wrap"><table class="rs-hist"><tr><th>When</th><th>How</th><th>Result</th><th>Time</th><th>Est. cost</th><th></th></tr>'+hist.map(function(e,i){
+    var st=e.status==='complete'?'rs-ok':e.status==='failed'?'rs-bad':'rs-run', lab=e.status==='complete'?'Complete':e.status==='failed'?'Failed':'Running';
+    var canView=e.result&&i>0&&e.status==='complete';
+    return '<tr><td>'+esc(fmtWhen(e.started_at))+'</td><td>'+esc(TRIG[e.trigger]||e.trigger)+'</td><td><span class="pill '+st+'"><span class="rs-dot"></span>'+lab+'</span>'+
+      (e.error?'<span class="err">'+esc(e.error)+(e.error_stage?' (during '+esc(e.error_stage)+')':'')+'</span>':'')+'</td><td>'+esc(fmtDur(e.duration_ms))+'</td><td>'+esc(money(e.est_cost_usd))+'</td>'+
+      '<td>'+(canView?'<button class="btn sm" data-rs="view:'+esc(e.run_id)+'">View</button>':'')+'</td></tr>';
+  }).join('')+'</table></div>';
+  var cp=c.caps;
+  if(cp) h+='<p class="rs-foot">Automatic research today: '+cp.auto_used+' of '+cp.auto_cap+' used. Manual runs today: '+cp.manual_used+' of '+cp.manual_cap+'. Costs are estimates; your OpenAI dashboard is the source of truth.</p>';
+  return h;
+}
+
+function card(x){
+  var id=x.id, r=cur(x), st=uiState(r), c=S.byId[id]||{}, full=c.research||null, sh=shown(x);
+  var hasRes=!!sh.result, tab=S.tab[id]||'business';
+  var online=!!cloud(), busy=!!S.starting[id]||st==='running';
+  var label=LABEL[st], h='<div class="card rs" id="rsCard">';
+  h+='<div class="lw-h"><h3>Research &amp; intelligence</h3><span class="pill '+PILL[st]+'"><span class="rs-dot"></span>'+esc(label)+'</span></div>';
+
+  /* status line + the one action that makes sense right now */
+  var meta='', btn='';
+  if(st==='none') meta='This lead has not been researched.<small>Researches the business from its website and the public web, then writes a sales brief.</small>';
+  else if(st==='pending') meta=(r&&r.note)?esc(r.note):'Queued. Research starts in a moment.';
+  else if(st==='running'){
+    var i=Math.max(0,STAGES.indexOf((r&&r.stage)||'evidence'));
+    meta=esc(STAGE_TXT[(r&&r.stage)||'evidence']||'Working')+'…<small>Step '+(i+1)+' of 3. You can leave this page; it keeps going.</small>';
+  }
+  else if(st==='stalled') meta='Research paused between steps.<small>Press Resume to continue where it stopped.</small>';
+  else if(st==='complete') meta='Updated '+esc(fmtWhen(r.completed_at))+(r.trigger?' · '+esc((TRIG[r.trigger]||r.trigger).toLowerCase()):'')+'<small>Internal only. Nothing here is shown to the prospect or sent automatically.</small>';
+  else if(st==='stale'||st==='needs_refresh') meta=(r&&r.note)?esc(r.note):'This research is more than '+STALE_DAYS+' days old.<small>Refresh it before you reach out.</small>';
+  else if(st==='failed') meta='Research did not finish.<small>'+esc((r&&r.error&&r.error.message)||'Unknown error')+(r&&r.error&&r.error.stage?' (during '+esc(r.error.stage)+')':'')+'. The lead and its intake are untouched.</small>';
+  else if(st==='insufficient') meta=(r&&r.note)?esc(r.note):'Not enough to research yet. Add a business name or website.';
+  var bl={none:'Research',pending:'Research now',stalled:'Resume',complete:'Refresh',stale:'Refresh',needs_refresh:'Research',failed:'Retry',insufficient:'Research',running:'Researching…'}[st];
+  btn='<button class="btn sm '+(st==='complete'?'':'pri')+'" data-rs="start"'+((!online||busy)?' disabled':'')+'>'+(S.starting[id]?'Starting…':bl)+'</button>';
+  h+='<div class="rs-bar"><div class="meta">'+meta+'</div>'+btn+'</div>';
+  if(st==='running'){
+    var si=Math.max(0,STAGES.indexOf((r&&r.stage)||'evidence'));
+    h+='<div class="rs-steps" aria-hidden="true">'+STAGES.map(function(s,k){ return '<i class="'+(k<si?'on':k===si?'on now':'')+'"></i>'; }).join('')+'</div>';
+  }
+  if(!online) h+='<div class="warnbox">Connect Cloud Sync in Settings to research leads. Research runs on your Worker, not in this browser.</div>';
+  if(S.err[id]) h+='<div class="warnbox">'+esc(S.err[id])+'</div>';
+  if(r&&r.refreshing&&st==='running') h+='<p class="hint" style="margin-top:0">Refreshing. The previous research stays visible below until the new one is ready.</p>';
+
+  if(hasRes){
+    var res=sh.result, rec=res.recommendation||{}, top=rec.strongest, s=res.sales||{};
+    if(sh.viewing) h+='<div class="rs-viewing"><span>Viewing older research from '+esc(fmtWhen(sh.viewing.finished_at||sh.viewing.started_at))+'.</span><button class="btn sm" data-rs="latest">Back to latest</button></div>';
+    if(top||s.suggested_next_step){
+      h+='<div class="rs-brief"><div class="k">Strongest opportunity</div>'+
+        (top?'<div class="h">'+esc(top.service)+' — '+esc(top.headline)+'</div>'+(top.why?'<div class="w">'+esc(top.why)+'</div>':''):'<div class="h">No clear lead-with service yet</div>')+
+        (s.suggested_next_step?'<div class="n"><b>Next step</b>'+esc(s.suggested_next_step)+'</div>':'')+'</div>';
+    }
+    h+='<div class="seg rs-tabs" role="tablist" aria-label="Research sections">'+TABS.map(function(t){
+      var n=0, rs=res;
+      if(t[0]==='opps') n=(rs.findings||[]).length; else if(t[0]==='ammo') n=((rs.sales||{}).talking_points||[]).length;
+      else if(t[0]==='discovery') n=((rs.sales||{}).discovery_questions||[]).length; else if(t[0]==='objections') n=((rs.sales||{}).likely_objections||[]).length;
+      else if(t[0]==='history') n=(c.history||[]).length;
+      return '<button role="tab" aria-selected="'+(tab===t[0])+'" class="'+(tab===t[0]?'on':'')+'" data-rs="tab:'+t[0]+'">'+t[1]+(n?'<span class="c">'+n+'</span>':'')+'</button>';
+    }).join('')+'</div>';
+    var body={business:tBusiness,opps:tOpps,approach:tApproach,ammo:tAmmo,discovery:tDiscovery,objections:tObjections,followup:tFollow,outreach:tOutreach}[tab];
+    h+='<div class="rs-panel" role="tabpanel">'+(tab==='history'?tHistory(x):(body?body(sh):''))+'</div>';
+    h+='<p class="rs-foot">Based on what the prospect wrote, their website and public web results. Findings marked unverified need checking before you rely on them.</p>';
+  } else if((c.history||[]).length){
+    h+='<div class="rs-sec"><h4>Research history</h4>'+tHistory(x)+'</div>';
+  }
+  return h+'</div>';
+}
+
+/* ---------- feeding the existing AI buttons ---------- */
+function intakeBlock(x){
+  var m=String(x.message||'').trim(); if(!m) return '';
+  var ls=m.split(/\n+/).filter(function(l){ return !/^(NEW CLIENT INTAKE|CALL REQUEST|Name:|Email:|Phone:|Prefers:)/i.test(l.trim()); });
+  var t=ls.join('\n').replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g,'[email]').replace(/(\+?\d[\d\s().\-]{8,}\d)/g,'[phone]').slice(0,2000);
+  return t?'WHAT THE PROSPECT TOLD US (website intake, their own words)\n'+t:'';
+}
+function brief(x){
+  var parts=[], ib=intakeBlock(x); if(ib) parts.push(ib);
+  var c=S.byId[x.id], f=c&&c.research, r=f&&f.result;
+  if(r){
+    var o=['RESEARCH BRIEF (internal and evidence-based; researched '+(L.fmtDate((f.completed_at||f.started_at||'').slice(0,10))||'recently')+')'];
+    var rec=r.recommendation||{};
+    if(rec.strongest) o.push('Strongest opportunity: '+rec.strongest.service+' — '+rec.strongest.headline+'. '+rec.strongest.why);
+    if(rec.secondary) o.push('Secondary: '+rec.secondary.service+' — '+rec.secondary.headline);
+    var ni=(r.not_indicated||[]).map(function(n){ return n.service; });
+    if(ni.length) o.push('Not indicated (do not pitch): '+ni.join('; '));
+    var good=(r.findings||[]).filter(function(z){ return z.confidence!=='unverified'; }).slice(0,5);
+    if(good.length) o.push('Supported findings:\n'+good.map(function(z){ return '- '+z.title+(z.evidence_note?' ('+z.evidence_note+')':''); }).join('\n'));
+    var sn=r.snapshot||{};
+    if(sn.what_they_sell) o.push('What they sell: '+sn.what_they_sell+(sn.target_customer?' | Customers: '+sn.target_customer:''));
+    if((r.unverified||[]).length) o.push('UNVERIFIED (never state as fact; ask instead):\n'+r.unverified.slice(0,6).map(function(z){ return '- '+z; }).join('\n'));
+    var s=r.sales;
+    if(s){
+      if(s.opening_observation) o.push('Opening observation: '+s.opening_observation);
+      if(s.pain_point) o.push('Pain point: '+s.pain_point);
+      if(s.value_proposition) o.push('Value proposition: '+s.value_proposition);
+      if((s.discovery_questions||[]).length) o.push('Discovery questions:\n'+s.discovery_questions.slice(0,5).map(function(z){ return '- '+z; }).join('\n'));
+      if((s.likely_objections||[]).length) o.push('Likely objections:\n'+s.likely_objections.slice(0,4).map(function(z){ return '- '+z.objection+' => '+z.response; }).join('\n'));
+    }
+    var ou=r.outreach;
+    if(ou){ if(ou.angle) o.push('Outreach angle: '+ou.angle); if((ou.avoid||[]).length) o.push('Do not say: '+ou.avoid.join('; ')); }
+    parts.push(o.join('\n').slice(0,4200));
+  }
+  return parts.join('\n\n');
+}
+function hasBrief(x){ var c=S.byId[x.id]; return !!(c&&c.research&&c.research.result); }
+function needsHydrate(x){ var r=cur(x); return !!(r&&r.has_result&&!hasBrief(x)&&cloud()); }
+var SYS_R='You write outreach and sales material for the owner of NONMAJORITY, a small studio that builds websites, CRM systems, AI and automation, content and marketing for owner-operated businesses. '+
+'You are given a lead record and a private RESEARCH BRIEF. Hard rules, no exceptions:\n'+
+'- Use ONLY facts in the lead record, the prospect\'s own words, or the research brief. Never invent reviews, ratings, owner names, prices, years in business, customer complaints or problems.\n'+
+'- The brief lists what is unverified. Never state an unverified item as fact; if you raise it, ask about it.\n'+
+'- Pitch only what the research supports. Never pitch a service the brief marks as not indicated or low priority, and never suggest rebuilding something that already works just because NONMAJORITY sells it.\n'+
+'- What the prospect said they need is their own view, not a diagnosis.\n'+
+'- Never mention research, AI, scoring or internal notes. Write as a person who looked at their business.\n'+
+'- No hype, no superlatives, no fake urgency, no made-up statistics, no guarantees.\n'+
+'- Sound like a real person typing quickly, not a marketing template.\n'+
+'- Output only the finished message. No preamble, no explanation, no markdown, no quotation marks around it.';
+var TASKS_R={
+  email:{title:'Cold email',prompt:'Write a short email. Under 110 words. Format exactly:\n\nSubject: <one short subject line>\n\n<email body>\n\nOpen with the opening observation or one specific verified fact. One sentence on the improvement the research supports for their customers. End with one simple question. Sign off with my name and business only if I provided them.'},
+  text:{title:'Text message',prompt:'Write one SMS. Two or three sentences, under 320 characters. Say who I am, name their business, one concrete reason from the research, and one easy question. No links unless my website is in my details. No emojis.'},
+  dm:{title:'Instagram DM',prompt:'Write one Instagram DM. Under 60 words, casual, human. One specific true observation about their business, then one easy question. No links, no pitch deck, no emojis unless my style calls for it.'},
+  call:{title:'Cold call script',prompt:'Write a call opener in labelled parts:\n\nGREETING\nREASON FOR CALLING\nWHAT I NOTICED\nTHE OPPORTUNITY\nMY QUESTION\n\nEach part is one or two spoken sentences. Base WHAT I NOTICED on verified research only. Then a blank line and:\n\nIF THEY SAY NO RIGHT AWAY\n<one short graceful exit>'},
+  ammo:{title:'Sales ammo',prompt:'List 3 to 5 talking points for this lead. One per line, each starting with "- ". Each must trace back to the research brief or their own words. Frame them around their customers\' experience, not criticism of the business. No intro, no closing line.'},
+  follow:{title:'Follow-up message',prompt:'Write a follow-up. Use the call status, last contact, notes and the brief\'s follow-up angle. If my notes say they asked for something, reference it. If they never answered, keep it light and give one new reason to reply. Under 90 words. Start with "CHANNEL: email" or "CHANNEL: text" or "CHANNEL: instagram" on its own line, then a blank line, then the message (include a Subject line for email).'},
+  object:{title:'Objection responses',prompt:'Write short spoken replies to the objections THIS owner is likely to raise (use the brief\'s list first), then to: NOT INTERESTED, HOW MUCH, I\'LL THINK ABOUT IT, SEND ME SOMETHING. Format each as the objection in caps, then my reply on the next line, then a blank line. Replies are one to three sentences, conversational, no pressure, and hand control back to them.'}
+};
+function promptFor(x,kind){
+  if(!hasBrief(x)||!TASKS_R[kind]) return null;
+  return {system:SYS_R,task:TASKS_R[kind]};
+}
+
+/* ---------- keep the CRM current without constant polling ---------- */
+function anyRunning(){
+  for(var i=0;i<DB.leads.length;i++){ var r=DB.leads[i].research; if(r&&(r.status==='researching'||(r.status==='pending'&&!r.note&&r.trigger==='auto'&&Date.now()-ts(r.queued_at)<5*60000))) return true; }
+  return false;
+}
+function refreshLeads(){
+  if(!cloud()||!window.LDCLOUD||!LDCLOUD.pull) return;
+  S.lastPull=Date.now();
+  LDCLOUD.pull().then(function(){ if(!state.open) L.render(); }).catch(function(){});
+}
+setInterval(function(){ if(!document.hidden&&anyRunning()) refreshLeads(); },20000);
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&Date.now()-S.lastPull>60000) refreshLeads();
+});
+
+window.LDRESEARCH={card:card,pill:pill,onOpen:onOpen,onClose:onClose,brief:brief,promptFor:promptFor,needsHydrate:needsHydrate,
+  hydrate:hydrate,cur:cur,uiState:uiState,_S:S};
 })();
 
 L.render();
