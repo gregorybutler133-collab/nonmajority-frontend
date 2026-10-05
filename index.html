@@ -1504,6 +1504,95 @@ textarea.nm-script{min-height:320px;font-size:15px;line-height:1.7}
   #terrainBg,#splash,.rail,.tabs,.topbar,#demoBanner,.toast{display:none!important}
   body{background:#fff;color:#000}
 }
+
+/* ============================================================
+   NONMAJORITY AI — command center, voice dock, Lead Finder AI
+   (uses the existing Summit tokens; nothing above is changed)
+   ============================================================ */
+.ai-fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:90;width:56px;height:56px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:var(--accent);color:var(--accent-ink);border:0;cursor:pointer;
+  box-shadow:0 6px 24px rgba(0,0,0,.35),0 0 0 1px var(--accent-line);transition:transform var(--t) ease,box-shadow var(--t) ease}
+.ai-fab:hover{transform:translateY(-1px) scale(1.03)}
+.ai-fab:focus-visible,.ai-mic:focus-visible{outline:2px solid var(--accent-hi);outline-offset:3px}
+.ai-fab svg,.ai-mic svg{width:24px;height:24px}
+.ai-fab.live{animation:aiPulse 1.6s ease-in-out infinite}
+@keyframes aiPulse{0%,100%{box-shadow:0 6px 24px rgba(0,0,0,.35),0 0 0 0 var(--accent-line)}50%{box-shadow:0 6px 24px rgba(0,0,0,.35),0 0 0 12px transparent}}
+@media(min-width:1040px){.ai-fab{bottom:24px;right:24px}}
+.ai-dock{position:fixed;z-index:250;right:18px;bottom:calc(150px + env(safe-area-inset-bottom,0px));width:min(400px,calc(100vw - 24px));max-height:min(620px,72vh);overflow:auto;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-l);box-shadow:0 20px 60px rgba(0,0,0,.45);padding:16px}
+.ai-dock[hidden]{display:none}
+@media(min-width:1040px){.ai-dock{bottom:92px;right:24px}}
+@media(max-width:719px){.ai-dock{left:0;right:0;bottom:0;width:100%;max-height:78vh;border-radius:var(--r-l) var(--r-l) 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
+.ai-dock-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ai-dock-h b{flex:1;font-family:var(--font-d);letter-spacing:-.01em}
+.ai-panel{display:block}
+.ai-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ai-status{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.ai-dot{width:9px;height:9px;border-radius:50%;background:var(--ink-4)}
+.ai-status.listening .ai-dot{background:var(--accent);animation:aiPulse2 1s ease-in-out infinite}
+.ai-status.processing .ai-dot{background:var(--warn);animation:aiPulse2 .7s ease-in-out infinite}
+.ai-status.speaking .ai-dot{background:var(--accent-hi);animation:aiPulse2 .5s ease-in-out infinite}
+.ai-status.error .ai-dot{background:var(--bad)}
+@keyframes aiPulse2{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.5)}}
+@media(prefers-reduced-motion:reduce){.ai-fab.live,.ai-status .ai-dot{animation:none!important}}
+.ai-you{font-size:13px;color:var(--ink-3);min-height:18px;margin-bottom:6px;font-style:italic}
+.ai-reply{font-size:15px;line-height:1.55;color:var(--ink);white-space:pre-wrap;min-height:24px;margin-bottom:10px}
+.ai-reply:empty:before{content:"Tap the mic or type a command. Try “Show me my hottest leads.”";color:var(--ink-3)}
+.ai-form{display:flex;gap:8px;align-items:center}
+.ai-in{flex:1;min-width:0;height:44px;padding:0 12px;border-radius:var(--r-m);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:15px}
+.ai-in:focus{outline:2px solid var(--accent-line);border-color:var(--accent)}
+.ai-mic{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--accent-line);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ai-mic[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.ai-stop{display:none}.ai-stop.on{display:inline-flex}
+.ai-recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.ai-chip{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:999px;padding:6px 11px;font-size:12.5px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-chip:hover{border-color:var(--accent-line);color:var(--ink)}
+.ai-pend{border:1px solid var(--warn);background:var(--warn-soft);border-radius:var(--r-m);padding:12px;margin-bottom:10px}
+.ai-pend p{margin:0 0 10px;font-size:14px}
+.ai-pend .row{display:flex;gap:8px;flex-wrap:wrap}
+.ai-err{border:1px solid var(--bad);background:var(--bad-soft);border-radius:var(--r-m);padding:10px 12px;margin-bottom:10px;font-size:13.5px}
+.ai-err .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ai-seg{display:grid;gap:8px}
+.ai-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-m);padding:12px;cursor:pointer;background:var(--surface-2)}
+.ai-opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.ai-opt input{margin-top:3px}
+.ai-opt b{display:block;font-size:14px}.ai-opt small{color:var(--ink-3);font-size:12.5px;line-height:1.45}
+.ai-log{list-style:none;margin:0;padding:0}
+.ai-log li{display:flex;gap:8px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.ai-log li:last-child{border-bottom:0}
+.ai-log .t{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);flex:none}
+.ai-prog{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin:10px 0}
+.ai-prog i{display:block;height:100%;background:var(--accent);transition:width .4s ease}
+.ai-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0}
+.ai-filters .field{margin:0}
+.ai-cand{padding:16px}
+.ai-cand+.ai-cand{margin-top:12px}
+.ai-cand-h{display:flex;gap:12px;align-items:flex-start}
+.ai-cand-h .nm{flex:1;min-width:0}.ai-cand-h .nm b{font-size:16px;display:block}
+.ai-cand-h .nm span{color:var(--ink-3);font-size:13px}
+.ai-score{flex:none;width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--tc,var(--low));font-family:var(--mono);font-weight:600;font-size:18px;line-height:1}
+.ai-score small{font-size:8.5px;letter-spacing:.08em;margin-top:2px;color:var(--ink-3)}
+.ai-score.t-hot{--tc:var(--hot)}.ai-score.t-high{--tc:var(--high)}.ai-score.t-medium{--tc:var(--med)}.ai-score.t-low{--tc:var(--low)}
+.ai-grid{display:grid;grid-template-columns:1fr;gap:10px 18px;margin-top:12px}
+@media(min-width:720px){.ai-grid{grid-template-columns:1fr 1fr}}
+.ai-grid h5{margin:0 0 4px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.ai-grid ul{margin:0;padding-left:16px;font-size:13.5px;line-height:1.5}
+.ai-grid p{margin:0;font-size:13.5px;line-height:1.5;word-break:break-word}
+.ai-b{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:1px;border:1px solid var(--line)}
+.ai-b.verified{color:var(--good);border-color:var(--accent-line);background:var(--accent-soft)}
+.ai-b.reported{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.ai-b.inferred{color:var(--ink-2);background:var(--surface-3)}
+.ai-b.unknown{color:var(--ink-3);border-style:dashed}
+.ai-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.ai-acts input[type=date],.ai-acts select{height:36px;border-radius:var(--r-s);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:0 8px;font:inherit;font-size:13px}
+.ai-draft{margin-top:12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--surface-2);padding:12px}
+.ai-draft pre{white-space:pre-wrap;margin:6px 0 8px;font:inherit;font-size:14px;line-height:1.55}
+.ai-cand details{margin-top:12px}.ai-cand summary{cursor:pointer;color:var(--ink-2);font-size:13px}
+.ai-factor{display:flex;gap:8px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line-soft)}
+.ai-factor b{flex:none;width:54px;font-family:var(--mono)}
+.ai-note{color:var(--ink-3);font-size:12.5px;line-height:1.5}
+.ai-lead .sc-big{font-family:var(--mono);font-size:34px;font-weight:600}
+.ai-lead .next{border-left:3px solid var(--accent);padding:8px 12px;background:var(--accent-soft);border-radius:0 var(--r-s) var(--r-s) 0;margin:10px 0;font-size:14px}
 </style>
 </head>
 <body>
@@ -6230,6 +6319,7 @@ function vSet(){
     '<button class="btn pri wide" id="saveMe">Save my details</button></div>';
 
   h+=gatewayCard();
+  if(window.LDAI){ try{ h+=LDAI.settingsCard(); }catch(e){} }
   h+='<div class="card"><b style="font-size:16px">Message style</b>'+
     '<label class="field" style="margin-top:12px"><span>How should the writing sound?</span>'+
     '<textarea id="tone">'+esc(s.tone||'')+'</textarea></label>'+
@@ -6509,6 +6599,8 @@ function renderSheet(){
 
   /* research & intelligence — filled in by the Worker for new website leads, or by the Research button */
   if(window.LDRESEARCH){ try{ h+=LDRESEARCH.card(x); }catch(e){} }
+  /* NONMAJORITY AI — opportunity score, intelligence, next action, voice entry */
+  if(window.LDAI){ try{ h+=LDAI.leadCard(x); }catch(e){} }
 
   /* AI outreach */
   h+='<div class="card"><div class="lw-h"><h3>Write the outreach</h3>'+
@@ -12390,6 +12482,7 @@ var SECTIONS=[
  ai:'Which leads need attention?',pages:[
   {id:'leads',label:'All Leads',view:'leads',filter:{}},
   {id:'hot',label:'Hot Leads',view:'leads',filter:{tier:'hot'}},
+  {id:'leadfinder',label:'Lead Finder AI',view:'lfinder'},
   {id:'risk',label:'At-Risk',custom:'atRisk'},
   {id:'followups',label:'Follow-Ups',view:'follow'},
   {id:'sources',label:'Lead Sources',custom:'sources'},
@@ -12438,6 +12531,7 @@ var SECTIONS=[
 ]},
 {id:'ai',icon:'✦',label:'AI',desc:'The AI system itself',
  ai:'What have you done for me lately?',pages:[
+  {id:'nmai',label:'AI Command Center',view:'ai'},
   {id:'assistant',label:'Assistant',view:'chat'},
   {id:'actions',label:'AI Actions',view:'aiops',seg:['aiops','log']},
   {id:'automations',label:'Automations',view:'aiops',seg:['aiops','auto']},
@@ -12487,7 +12581,7 @@ var HOME={
   clients:['crm','customers'], cal:['schedule','calendar'],
   money:['money','expenses'], content:['content','vault'],
   improve:['bi','improve'], aiops:['ai','actions'], chat:['ai','assistant'],
-  set:['settings','connection'], finder:['sales','prospects'],
+  set:['settings','connection'], finder:['sales','prospects'], ai:['ai','nmai'], lfinder:['crm','leadfinder'],
   prompts:['sales','templates'], rebuttals:['sales','outreach'], coach:['sales','conversations']
 };
 
@@ -18368,6 +18462,595 @@ document.addEventListener('click',function(e){
 
 })();
 
+</script>
+<script>
+/* ============================================================
+   NONMAJORITY AI — voice-controlled CRM + intelligent Lead Finder
+   One agent on the Worker (/v1/ai/agent) serves text AND voice.
+   Voice = OpenAI Realtime over WebRTC for speech in/out only.
+   Every action runs on the Worker, inside the signed-in workspace,
+   under the permission model and audit log. Nothing is sent or
+   deleted without the approval rules set in AI settings.
+   ============================================================ */
+(function(){
+"use strict";
+var L=window.LD, $=L.$, $$=L.$$, esc=L.esc, DB=L.DB;
+var ICO_MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+var EXAMPLES=['Show me my hottest leads','What leads haven’t been contacted?','What’s my highest priority lead today?','Find me 20 plumbers in Palmdale'];
+var YES=/^\s*(yes|yeah|yep|yup|confirm|confirmed|approve|approved|do it|go ahead|okay|ok|send it|sure)[\s.!,]*$/i;
+var NO=/^\s*(no|nope|cancel|stop|don'?t|never mind|decline)[\s.!,]*$/i;
+
+var S={dock:false,mode:'idle',you:'',reply:'',err:null,history:[],context:{},pending:[],recent:[],busy:false,abort:null,
+  voice:{want:false,on:false,tries:0,pc:null,dc:null,stream:null,audio:null,rec:null,speakTimer:null},
+  settings:null,audit:null,usage:null,loaded:false,
+  lf:{run:null,runs:[],form:{count:'20',desired_service:'Website',min_score:'0'},filter:{min:0,tier:'',hideDup:true,sort:'score'},polling:false,stopPoll:false,msg:'',drafts:{},busy:{}}};
+try{ S.recent=JSON.parse(localStorage.getItem('nmai_recent')||'[]').slice(0,8); }catch(e){}
+
+/* ---------- worker access ---------- */
+function C(){ return (window.LDCLOUD&&LDCLOUD.ready())?LDCLOUD.cfg():null; }
+function ready(){ return !!C(); }
+function api(method,path,body,signal){
+  var c=C();
+  if(!c) return Promise.reject(mkErr('Connect Cloud Sync in Settings to use NONMAJORITY AI.',0));
+  var url=c.apiUrl.replace(/\/+$/,'')+path, opt={method:method,headers:{'Authorization':'Bearer '+c.token},signal:signal};
+  if(method==='GET'){ url+=(path.indexOf('?')>-1?'&':'?')+'workspace_id='+encodeURIComponent(c.workspaceId); }
+  else { opt.headers['Content-Type']='application/json'; opt.body=JSON.stringify(Object.assign({workspace_id:c.workspaceId},body||{})); }
+  return fetch(url,opt).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=JSON.parse(t); }catch(e){}
+      if(!r.ok){ var er=mkErr((d&&d.error)||('Request failed ('+r.status+')'),r.status); er.retryable=!!(d&&d.retryable)||r.status>=500; er.data=d; throw er; }
+      return d||{};
+    });
+  },function(e){ if(e&&e.name==='AbortError') throw e; var er=mkErr('No connection to the server. Check your network.',0); er.retryable=true; throw er; });
+}
+function mkErr(m,s){ var e=new Error(m); e.status=s; return e; }
+
+/* ---------- small helpers ---------- */
+function chip(b){ return '<span class="ai-b '+esc(b||'unknown')+'">'+esc(b||'unknown')+'</span>'; }
+function link(u,t){ return /^https?:\/\//i.test(u||'')?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(t||u.replace(/^https?:\/\/(www\.)?/,'').slice(0,48))+'</a>':esc(t||u||''); }
+function remember(t){ S.recent=[t].concat(S.recent.filter(function(x){ return x!==t; })).slice(0,8); try{ localStorage.setItem('nmai_recent',JSON.stringify(S.recent)); }catch(e){} }
+function setErr(m,opts){ S.err=m?Object.assign({msg:m},opts||{}):null; if(m) S.mode='error'; else if(S.mode==='error') S.mode=S.voice.on?'listening':'idle'; paint(); }
+function toast(m){ try{ L.toast(m); }catch(e){} }
+
+/* ---------- panel markup (dock + page share it) ---------- */
+function panel(){
+  return '<div class="ai-panel" data-ai-panel>'+
+    '<div class="ai-top"><span class="ai-status" data-ai-slot="status" role="status" aria-live="polite"></span><span style="flex:1"></span>'+
+      '<button class="btn sm ai-stop" data-ai="stop" aria-label="Stop and cancel">Stop</button></div>'+
+    '<div class="ai-you" data-ai-slot="you"></div>'+
+    '<div class="ai-reply" data-ai-slot="reply" aria-live="polite"></div>'+
+    '<div data-ai-slot="pending"></div><div data-ai-slot="error"></div>'+
+    '<form class="ai-form" data-ai-form>'+
+      '<button type="button" class="ai-mic" data-ai="mic" aria-label="Talk to NONMAJORITY AI" aria-pressed="false">'+ICO_MIC+'</button>'+
+      '<input class="ai-in" type="text" name="cmd" placeholder="Tell NONMAJORITY AI what to do…" autocomplete="off" aria-label="Command">'+
+      '<button class="btn pri sm" type="submit">Send</button></form>'+
+    '<div class="ai-recent" data-ai-slot="recent" aria-label="Recent commands"></div></div>';
+}
+var STATUS={idle:'Ready',listening:'Listening…',processing:'Working on it…',speaking:'Speaking…',error:'Needs attention'};
+function paint(){
+  var sTxt=STATUS[S.mode]||'Ready';
+  $$('[data-ai-slot="status"]').forEach(function(el){ el.className='ai-status '+S.mode; el.innerHTML='<span class="ai-dot"></span>'+esc(sTxt); });
+  $$('[data-ai-slot="you"]').forEach(function(el){ el.textContent=S.you?('“'+S.you+'”'):''; });
+  $$('[data-ai-slot="reply"]').forEach(function(el){ el.textContent=S.reply; });
+  $$('[data-ai-slot="pending"]').forEach(function(el){
+    el.innerHTML=S.pending.map(function(p){
+      return '<div class="ai-pend" role="alertdialog" aria-label="Approval needed"><p><b>Needs your approval:</b> '+esc(p.summary)+'</p>'+
+        '<div class="row"><button class="btn pri sm" data-ai="approve" data-id="'+esc(p.id)+'">Approve</button>'+
+        '<button class="btn sm" data-ai="decline" data-id="'+esc(p.id)+'">Cancel</button></div>'+
+        '<p class="ai-note" style="margin:8px 0 0">'+(p.requires_tap?'This one needs a tap. Saying “yes” is not enough.':'You can also say “confirm” or “cancel”.')+'</p></div>';
+    }).join('');
+  });
+  $$('[data-ai-slot="error"]').forEach(function(el){
+    var e=S.err; if(!e){ el.innerHTML=''; return; }
+    el.innerHTML='<div class="ai-err" role="alert">'+esc(e.msg)+'<div class="row">'+
+      (e.retry?'<button class="btn sm" data-ai="retry">Try again</button>':'')+
+      (e.reconnect?'<button class="btn sm" data-ai="mic">Reconnect voice</button>':'')+
+      '<button class="btn sm ghost" data-ai="dismiss">Dismiss</button></div></div>';
+  });
+  $$('[data-ai-slot="recent"]').forEach(function(el){
+    var list=S.recent.length?S.recent:EXAMPLES;
+    el.innerHTML=list.map(function(t){ return '<button class="ai-chip" data-ai="run" data-t="'+esc(t)+'" title="'+esc(t)+'">'+esc(t)+'</button>'; }).join('');
+  });
+  $$('.ai-stop').forEach(function(b){ b.classList.toggle('on',S.mode==='processing'||S.mode==='speaking'||S.voice.on); b.textContent=(S.voice.on&&S.mode==='listening')?'Hang up':'Stop'; });
+  $$('.ai-mic').forEach(function(b){ b.setAttribute('aria-pressed',S.voice.on?'true':'false'); b.setAttribute('aria-label',S.voice.on?'Stop listening':'Talk to NONMAJORITY AI'); });
+  var fab=$('#aiFab'); if(fab){ fab.classList.toggle('live',S.voice.on); fab.setAttribute('aria-expanded',S.dock?'true':'false'); }
+  paintSettings();
+}
+
+/* ---------- sending commands ---------- */
+function send(text,via){
+  text=String(text||'').trim(); if(!text) return;
+  if(S.busy){ toast('Still working on the last command'); return; }
+  if(!ready()){ setErr('Connect Cloud Sync in Settings to use NONMAJORITY AI.'); return; }
+  S.err=null; S.you=text;
+  /* spoken yes/no only resolves ONE waiting, non-destructive approval */
+  if(S.pending.length===1){
+    var p=S.pending[0];
+    if(YES.test(text)){ if(p.requires_tap&&via==='voice'){ say('That one needs a tap on the Approve button. A spoken yes is not enough for deletes or bulk changes.',via); return; } decide(p.id,'approve',via); return; }
+    if(NO.test(text)){ decide(p.id,'decline',via); return; }
+  }
+  remember(text); S.busy=true; S.mode='processing'; S.reply=''; paint();
+  S.abort=(window.AbortController?new AbortController():null);
+  api('POST','/v1/ai/agent',{message:text,history:S.history,context:S.context,mode:via==='voice'?'voice':'text'},S.abort&&S.abort.signal).then(function(r){
+    S.history=S.history.concat([{role:'user',content:text},{role:'assistant',content:r.text}]).slice(-12);
+    S.context=r.context||S.context; S.pending=(r.pending||[]).concat(S.pending.filter(function(p){ return !(r.pending||[]).some(function(n){ return n.id===p.id; }); }));
+    afterChange(r.changed);
+    say(r.text,via);
+  }).catch(function(e){
+    if(e&&e.name==='AbortError'){ return; }
+    S.mode=S.voice.on?'listening':'idle';
+    setErr(e.message,{retry:!!e.retryable,retryText:text,retryVia:via});
+    if(via==='voice') speakText(e.message);
+  }).then(function(){ S.busy=false; S.abort=null; paint(); if(L.state.view==='ai') refreshAudit(); });
+}
+function say(text,via){
+  S.reply=text; S.busy=false; S.mode=S.voice.on?'listening':'idle'; paint();
+  if(via==='voice') speakText(text);
+}
+function decide(id,decision,via){
+  S.busy=true; S.mode='processing'; paint();
+  api('POST','/v1/ai/confirm',{pending_id:id,decision:decision,via:via==='voice'?'voice':'tap'}).then(function(r){
+    S.pending=S.pending.filter(function(p){ return p.id!==id; });
+    afterChange(r.changed); S.busy=false; say(r.text||'Done.',via);
+  }).catch(function(e){
+    S.busy=false;
+    if(e.status===404||e.status===409||e.status===410) S.pending=S.pending.filter(function(p){ return p.id!==id; });
+    S.mode=S.voice.on?'listening':'idle'; setErr(e.message); if(via==='voice') speakText(e.message);
+  });
+}
+function afterChange(ch){
+  ch=ch||{};
+  var jobs=[];
+  if(window.LDCLOUD){
+    if(ch.leads) jobs.push(LDCLOUD.pull());
+    if(ch.tasks) jobs.push(LDCLOUD.pullTasks());
+  }
+  if(ch.finder&&S.lf.run) refreshRun();
+  if(jobs.length) Promise.all(jobs).then(function(){ L.render(); if(L.state.open) L.renderSheet(); }).catch(function(){});
+}
+
+/* ---------- speaking ---------- */
+function speakText(text){
+  if(!text) return;
+  var v=S.voice;
+  if(v.on&&v.dc&&v.dc.readyState==='open'){
+    try{
+      v.dc.send(JSON.stringify({type:'response.create',response:{conversation:'none',output_modalities:['audio'],
+        instructions:'Read the following text aloud exactly as written, in a natural, brief, confident tone. Add nothing and leave nothing out:\n\n'+text}}));
+      S.mode='speaking'; paint(); clearTimeout(v.speakTimer); v.speakTimer=setTimeout(function(){ if(S.mode==='speaking'){ S.mode=v.on?'listening':'idle'; paint(); } },45000);
+      return;
+    }catch(e){}
+  }
+  if(window.speechSynthesis&&window.SpeechSynthesisUtterance){
+    try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.onend=u.onerror=function(){ if(S.mode==='speaking'){ S.mode=S.voice.on?'listening':'idle'; paint(); } }; S.mode='speaking'; paint(); speechSynthesis.speak(u); }catch(e){}
+  }
+}
+function stopAll(){
+  var v=S.voice;
+  if(S.abort){ try{ S.abort.abort(); }catch(e){} S.abort=null; }
+  S.busy=false;
+  if(v.dc&&v.dc.readyState==='open'){ try{ v.dc.send(JSON.stringify({type:'response.cancel'})); v.dc.send(JSON.stringify({type:'output_audio_buffer.clear'})); }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.cancel(); }catch(e){} }
+  clearTimeout(v.speakTimer);
+  if(v.on&&S.mode==='listening'){ hangUp(); return; }   /* second press while only listening = hang up */
+  S.mode=v.on?'listening':'idle'; paint();
+}
+
+/* ---------- voice: Realtime (WebRTC) with browser fallback ---------- */
+function micError(e){
+  var n=e&&e.name;
+  if(n==='NotAllowedError'||n==='PermissionDeniedError'||n==='SecurityError') return 'Microphone access is blocked. Allow the microphone for this site in your browser settings, then tap the mic again. You can keep typing in the meantime.';
+  if(n==='NotFoundError'||n==='DevicesNotFoundError') return 'No microphone was found on this device. You can type commands instead.';
+  if(n==='NotReadableError') return 'The microphone is being used by another app. Close it and try again.';
+  return 'Could not start the microphone.';
+}
+function startVoice(){
+  var v=S.voice; if(v.on||v.connecting) return;
+  if(!ready()){ setErr('Connect Cloud Sync in Settings to use NONMAJORITY AI.'); return; }
+  v.want=true; v.connecting=true; S.err=null; S.mode='processing'; S.reply='Connecting the microphone…'; paint();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.RTCPeerConnection){ v.connecting=false; return fallbackVoice('This browser cannot do live voice.'); }
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
+    v.stream=stream;
+    return api('POST','/v1/ai/realtime/session',{});
+  }).then(function(sess){ return connectRealtime(sess.client_secret); }).catch(function(e){
+    v.connecting=false; releaseMedia();
+    if(e&&(e.name==='NotAllowedError'||e.name==='PermissionDeniedError'||e.name==='NotFoundError'||e.name==='NotReadableError'||e.name==='SecurityError')){ v.want=false; S.mode='idle'; S.reply=''; setErr(micError(e)); return; }
+    fallbackVoice(e&&e.message?e.message:'Live voice is unavailable.');
+  });
+}
+function connectRealtime(secret){
+  var v=S.voice;
+  return new Promise(function(resolve,reject){
+    var pc=new RTCPeerConnection(); v.pc=pc;
+    var audio=document.createElement('audio'); audio.autoplay=true; v.audio=audio;
+    pc.ontrack=function(e){ audio.srcObject=e.streams[0]; };
+    v.stream.getTracks().forEach(function(t){ pc.addTrack(t,v.stream); });
+    var dc=pc.createDataChannel('oai-events'); v.dc=dc;
+    dc.onopen=function(){ v.on=true; v.connecting=false; v.tries=0; S.err=null; S.mode='listening'; S.reply='Listening. Go ahead.'; paint(); resolve(); };
+    dc.onmessage=function(m){ try{ onRealtime(JSON.parse(m.data)); }catch(e){} };
+    dc.onclose=function(){ dropped(); };
+    pc.onconnectionstatechange=function(){ if(pc.connectionState==='failed'||pc.connectionState==='disconnected') dropped(); };
+    pc.createOffer().then(function(o){ return pc.setLocalDescription(o); }).then(function(){
+      return fetch('https://api.openai.com/v1/realtime/calls',{method:'POST',body:pc.localDescription.sdp,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/sdp'}});
+    }).then(function(r){ if(!r.ok) throw mkErr('Voice service refused the connection ('+r.status+').',r.status); return r.text(); })
+      .then(function(sdp){ return pc.setRemoteDescription({type:'answer',sdp:sdp}); }).catch(reject);
+    setTimeout(function(){ if(!v.on) reject(mkErr('Voice connection timed out.',0)); },15000);
+  });
+}
+function onRealtime(e){
+  var v=S.voice;
+  switch(e.type){
+    case 'input_audio_buffer.speech_started':
+      if(S.mode==='speaking'){ stopSpeechOnly(); }
+      if(!S.busy){ S.mode='listening'; S.you=''; paint(); } break;
+    case 'conversation.item.input_audio_transcription.delta':
+      if(!S.busy){ S.you=(S.you||'')+(e.delta||''); paint(); } break;
+    case 'conversation.item.input_audio_transcription.completed':
+      if(e.transcript&&!S.busy){ S.you=e.transcript.trim(); paint(); send(e.transcript,'voice'); } break;
+    case 'output_audio_buffer.started': S.mode='speaking'; paint(); break;
+    case 'output_audio_buffer.stopped': case 'output_audio_buffer.cleared':
+      clearTimeout(v.speakTimer); if(S.mode==='speaking'){ S.mode='listening'; paint(); } break;
+    case 'error': setErr((e.error&&e.error.message)||'Voice error.',{reconnect:true}); break;
+  }
+}
+function stopSpeechOnly(){
+  var v=S.voice; if(v.dc&&v.dc.readyState==='open'){ try{ v.dc.send(JSON.stringify({type:'response.cancel'})); v.dc.send(JSON.stringify({type:'output_audio_buffer.clear'})); }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.cancel(); }catch(e){} }
+}
+function releaseMedia(){
+  var v=S.voice;
+  try{ if(v.stream) v.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+  try{ if(v.pc) v.pc.close(); }catch(e){}
+  try{ if(v.rec){ v.rec.onend=null; v.rec.stop(); } }catch(e){}
+  v.stream=null; v.pc=null; v.dc=null; v.rec=null; v.on=false;
+}
+function hangUp(){ var v=S.voice; v.want=false; v.connecting=false; releaseMedia(); S.mode='idle'; paint(); }
+function dropped(){
+  var v=S.voice; if(!v.on&&!v.connecting) return;
+  var wanted=v.want; releaseMedia(); v.connecting=false;
+  if(wanted&&v.tries<2){ v.tries++; S.mode='processing'; setErr('Voice connection dropped. Reconnecting…'); setTimeout(function(){ if(v.want) startVoice(); },1200*v.tries); }
+  else { v.want=false; S.mode='error'; setErr('Voice connection lost. Your typed commands still work.',{reconnect:true}); }
+}
+function fallbackVoice(why){
+  var v=S.voice, SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ v.want=false; S.mode='idle'; S.reply=''; setErr((why||'Voice is unavailable')+' Type your command instead.'); return; }
+  var rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=false; v.rec=rec; v.on=true; v.connecting=false;
+  S.mode='listening'; S.reply='Listening (basic voice mode).'; paint();
+  rec.onresult=function(ev){ var t='',fin=false; for(var i=ev.resultIndex;i<ev.results.length;i++){ t+=ev.results[i][0].transcript; if(ev.results[i].isFinal) fin=true; } S.you=t; paint(); if(fin) send(t,'voice'); };
+  rec.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ v.want=false; releaseMedia(); S.mode='idle'; setErr(micError({name:'NotAllowedError'})); } };
+  rec.onend=function(){ if(v.want&&v.on&&!S.busy){ try{ rec.start(); }catch(e){} } };
+  try{ rec.start(); }catch(e){ v.want=false; releaseMedia(); setErr('Could not start the microphone.'); }
+}
+function toggleMic(){ if(S.voice.on||S.voice.connecting) hangUp(); else { openDock(true); startVoice(); } }
+
+/* ---------- dock ---------- */
+function ensureDock(){
+  if($('#aiFab')) return;
+  var fab=document.createElement('button'); fab.id='aiFab'; fab.className='ai-fab'; fab.setAttribute('data-ai','dock'); fab.setAttribute('aria-label','Open NONMAJORITY AI'); fab.setAttribute('aria-expanded','false'); fab.innerHTML=ICO_MIC;
+  var dock=document.createElement('div'); dock.id='aiDock'; dock.className='ai-dock'; dock.hidden=true; dock.setAttribute('role','dialog'); dock.setAttribute('aria-label','NONMAJORITY AI');
+  dock.innerHTML='<div class="ai-dock-h"><b>NONMAJORITY AI</b><button class="btn sm" data-ai="open-page">Open</button><button class="btn sm ghost" data-ai="dock" aria-label="Close">✕</button></div>'+panel();
+  document.body.appendChild(fab); document.body.appendChild(dock); paint();
+}
+function openDock(force){
+  S.dock=(force===true)?true:!S.dock; var d=$('#aiDock'); if(d){ d.hidden=!S.dock; }
+  paint(); if(S.dock){ var i=d&&d.querySelector('.ai-in'); if(i&&!S.voice.on) setTimeout(function(){ try{ i.focus(); }catch(e){} },30); loadExtras(); }
+}
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&S.dock){ openDock(false); var f=$('#aiFab'); if(f) f.focus(); } });
+
+/* ---------- settings (autonomy toggle), audit, usage ---------- */
+var AUTO_TXT={strict:['Ask every time','Confirm before any change to your CRM, and before anything leaves it.'],
+  standard:['Standard (recommended)','Looks things up, drafts and saves inside your CRM on its own. Asks before sending, deleting or anything external.'],
+  trusted:['Trusted actions','Same as Standard, plus the actions you tick below run without asking. Deleting and bulk changes always ask.']};
+function refreshAudit(){ if(!ready()) return; api('GET','/v1/ai/audit?limit=12').then(function(d){ S.audit=d.entries||[]; paintSettings(); }).catch(function(){}); }
+function loadExtras(){
+  if(!ready()||S.loaded) return; S.loaded=true;
+  api('GET','/v1/ai/settings').then(function(d){ S.settings=d; paintSettings(); }).catch(function(){ S.loaded=false; });
+  api('GET','/v1/ai/audit?limit=12').then(function(d){ S.audit=d.entries||[]; paintSettings(); }).catch(function(){});
+  api('GET','/v1/ai/usage').then(function(d){ S.usage=d; paintSettings(); }).catch(function(){});
+  api('GET','/v1/ai/pending').then(function(d){ if(d.pending&&d.pending.length&&!S.pending.length){ S.pending=d.pending; paint(); } }).catch(function(){});
+}
+function settingsCard(){
+  setTimeout(loadExtras,0);
+  return '<div class="card" id="aiSettingsCard"><b style="font-size:16px">NONMAJORITY AI settings</b>'+
+    '<p class="hint">How much the AI may do on its own. Applies to everyone in this workspace; only owners and admins can change it.</p>'+
+    '<div data-ai-slot="settings"><p class="ai-note">Loading…</p></div></div>';
+}
+function paintSettings(){
+  $$('[data-ai-slot="settings"]').forEach(function(el){
+    var s=S.settings; if(!s){ el.innerHTML=ready()?'<p class="ai-note">Loading…</p>':'<p class="ai-note">Connect Cloud Sync to manage AI settings.</p>'; return; }
+    var cur=s.settings.autonomy, h='<div class="ai-seg" role="radiogroup" aria-label="AI autonomy">';
+    ['strict','standard','trusted'].forEach(function(k){
+      h+='<label class="ai-opt'+(cur===k?' on':'')+'"><input type="radio" name="aiAuto" value="'+k+'" data-ai-auto="'+k+'"'+(cur===k?' checked':'')+(s.can_edit?'':' disabled')+'><span><b>'+AUTO_TXT[k][0]+'</b><small>'+AUTO_TXT[k][1]+'</small></span></label>';
+    });
+    h+='</div>';
+    if(cur==='trusted'){
+      h+='<p class="ai-note" style="margin:12px 0 6px">Run without asking:</p>'+(s.executable_tools||[]).map(function(t){
+        return '<label style="display:flex;gap:8px;align-items:center;padding:4px 0"><input type="checkbox" data-ai-trust="'+esc(t)+'"'+(s.settings.trusted_tools.indexOf(t)>-1?' checked':'')+(s.can_edit?'':' disabled')+'> '+esc(t.replace(/_/g,' '))+'</label>';
+      }).join('')+'<p class="ai-note">Deleting records and bulk changes always ask, even here.</p>';
+    }
+    if(!s.can_edit) h+='<p class="ai-note" style="margin-top:10px">Ask a workspace owner or admin to change this.</p>';
+    if(S.usage){ var u=S.usage.today||{}; h+='<p class="ai-note" style="margin-top:12px">Today: '+(u.agent_turns||0)+' commands, '+(u.finder_runs||0)+' finder runs, '+(u.web_searches_workspace||0)+' web searches (workspace). Limits: '+S.usage.limits.agent_turns_per_user_day+' commands, '+S.usage.limits.finder_runs_per_user_day+' finder runs, '+S.usage.limits.web_searches_per_workspace_day+' searches per day. Costs are estimates.</p>'; }
+    el.innerHTML=h;
+  });
+  $$('[data-ai-slot="audit"]').forEach(function(el){
+    var a=S.audit; if(!a){ el.innerHTML='<p class="ai-note">Loading…</p>'; return; }
+    el.innerHTML=a.length?'<ul class="ai-log">'+a.map(function(x){
+      var st=x.confirmation==='required'?'waiting for approval':x.confirmation==='declined'?'declined':x.confirmation==='expired'?'expired':x.success?'done':'failed';
+      return '<li><span class="t">'+esc((x.created_at||'').slice(5,16).replace('T',' '))+'</span><span style="flex:1"><b>'+esc(x.tool.replace(/_/g,' '))+'</b> · '+esc(x.mode)+' · '+esc(st)+'<br><span class="ai-note">'+esc(x.command||'')+'</span></span></li>';
+    }).join('')+'</ul>':'<p class="ai-note">No AI actions yet.</p>';
+  });
+}
+function saveSettings(patch){
+  api('PUT','/v1/ai/settings',patch).then(function(d){ if(S.settings) S.settings.settings=d.settings; paintSettings(); toast('AI settings saved'); })
+    .catch(function(e){ toast(e.message); loadSettingsAgain(); });
+}
+function loadSettingsAgain(){ api('GET','/v1/ai/settings').then(function(d){ S.settings=d; paintSettings(); }).catch(function(){}); }
+
+/* ---------- AI page ---------- */
+L.views=L.views||{}; L.titles=L.titles||{};
+L.titles.ai=['NONMAJORITY AI','Talk to your CRM'];
+L.views.ai=function(){
+  setTimeout(function(){ paint(); loadExtras(); refreshAudit(); },0);
+  return '<div class="wrap"><div style="height:16px"></div>'+
+    '<div class="card"><b style="font-size:17px">AI Command Center</b>'+
+    '<p class="hint">Say it or type it. It looks things up, writes from your real research, saves and schedules for you, and asks before anything is sent or deleted.</p>'+
+    (ready()?'':'<div class="warnbox">Connect Cloud Sync in Settings first. The AI runs on your Worker, inside your workspace.</div>')+
+    panel()+'</div>'+
+    '<div class="card"><b style="font-size:16px">Recent AI activity</b><p class="hint">Every action is logged with who, when, voice or text, and whether it needed approval. Audio is never stored.</p><div data-ai-slot="audit"></div></div>'+
+    settingsCard()+'</div>';
+};
+
+/* ---------- Lead Finder AI ---------- */
+L.titles.lfinder=['Lead Finder AI','Real businesses, scored'];
+var F=S.lf;
+function fv(k,d){ var v=F.form[k]; return esc(v==null?(d||''):v); }
+L.views.lfinder=function(){
+  setTimeout(function(){ if(ready()&&!F.loadedRuns){ F.loadedRuns=true; loadRuns(); } paintLF(); },0);
+  var terr=(DB.settings&&DB.settings.territory)||'';
+  var f=F.form;
+  return '<div class="wrap"><div style="height:16px"></div>'+
+   '<div class="card"><b style="font-size:17px">Lead Finder AI</b>'+
+   '<p class="hint">Finds real businesses from public web sources, reads their public footprint, and scores how likely they are to need you. Every fact shows where it came from; guesses are labelled. It never logs in anywhere, skips sites that ask not to be read, and never makes data up.</p>'+
+   (ready()?'':'<div class="warnbox">Connect Cloud Sync in Settings first.</div>')+
+   '<div class="grid2" style="margin-top:12px">'+
+   '<label class="field"><span>Industry</span><input id="lfIndustry" list="lfInds" value="'+fv('industry')+'" placeholder="Plumber"><datalist id="lfInds">'+((DB.industries||[]).map(function(i){ return '<option value="'+esc(i)+'">'; }).join(''))+'</datalist></label>'+
+   '<label class="field"><span>Location</span><input id="lfLocation" value="'+(f.location==null?esc(terr):fv('location'))+'" placeholder="Palmdale, CA"></label>'+
+   '<label class="field"><span>Radius / market (miles)</span><input id="lfRadius" type="number" inputmode="numeric" min="0" max="200" value="'+fv('radius_miles')+'" placeholder="25"></label>'+
+   '<label class="field"><span>Business type</span><input id="lfType" value="'+fv('business_type')+'" placeholder="owner-operated"></label>'+
+   '<label class="field"><span>Services offered</span><input id="lfServices" value="'+fv('services_offered')+'" placeholder="repairs, repipes, water heaters"></label>'+
+   '<label class="field"><span>Service you want to sell</span><select id="lfService">'+['Website','CRM','AI & Automation','Content Marketing','Marketing'].map(function(s){ return '<option'+(f.desired_service===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')+'</select></label>'+
+   '<label class="field"><span>How many leads</span><select id="lfCount">'+['10','20','25','50'].map(function(n){ return '<option'+(String(f.count)===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'+
+   '<label class="field"><span>Minimum opportunity score</span><input id="lfMin" type="number" inputmode="numeric" min="0" max="100" value="'+fv('min_score','0')+'"></label></div>'+
+   '<label class="field"><span>Exclusions (optional)</span><input id="lfExcl" value="'+fv('exclusions')+'" placeholder="franchises, anyone I already called"></label>'+
+   '<div class="ai-acts" style="margin-top:0"><button class="btn pri" data-ai="lfstart"'+(F.polling?' disabled':'')+'>Find leads</button>'+
+   (F.polling?'<button class="btn" data-ai="lfcancel">Stop</button>':'')+'</div></div>'+
+   '<div id="lfProgress"></div><div id="lfResults"></div><div id="lfRuns"></div></div>';
+};
+function readForm(){
+  var m={industry:'lfIndustry',location:'lfLocation',radius_miles:'lfRadius',business_type:'lfType',services_offered:'lfServices',desired_service:'lfService',count:'lfCount',min_score:'lfMin',exclusions:'lfExcl'};
+  Object.keys(m).forEach(function(k){ var el=$('#'+m[k]); if(el) F.form[k]=el.value; });
+}
+document.addEventListener('input',function(e){ if(e.target&&/^lf[A-Z]/.test(e.target.id||'')) readForm(); });
+document.addEventListener('change',function(e){ if(e.target&&/^lf[A-Z]/.test(e.target.id||'')) readForm(); if(e.target&&e.target.dataset&&e.target.dataset.aiFilter){ filterChange(e.target); } });
+
+function loadRuns(){
+  api('GET','/v1/lead-finder/runs').then(function(d){
+    F.runs=d.runs||[];
+    if(!F.run&&F.runs.length){ return api('GET','/v1/lead-finder/runs/'+encodeURIComponent(F.runs[0].id)).then(function(r){ F.run=r.run; if(F.run.status==='running'&&!F.polling){ F.msg='A search is still in progress. Press Resume to continue it.'; } paintLF(); }); }
+    paintLF();
+  }).catch(function(e){ F.msg=e.message; paintLF(); });
+}
+function refreshRun(){ if(!F.run) return; api('GET','/v1/lead-finder/runs/'+encodeURIComponent(F.run.id)).then(function(r){ F.run=r.run; paintLF(); }).catch(function(){}); }
+function startFinder(){
+  readForm();
+  if(!ready()){ F.msg='Connect Cloud Sync in Settings first.'; paintLF(); return; }
+  if(!F.form.industry||!F.form.location){ F.msg='Enter an industry and a location.'; paintLF(); return; }
+  F.msg='Starting…'; F.polling=true; F.stopPoll=false; F.run=null; F.drafts={}; paintLF(); rerenderForm();
+  var c=Object.assign({},F.form);
+  api('POST','/v1/lead-finder/runs',{criteria:c}).then(function(d){ F.run=d.run; pollRun(0); }).catch(function(e){ F.polling=false; F.msg=e.message; paintLF(); rerenderForm(); });
+}
+function rerenderForm(){ if(L.state.view==='lfinder'){ var b=$$('[data-ai="lfstart"]')[0]; if(b){ b.disabled=F.polling; } var acts=b&&b.parentNode; if(acts){ var st=acts.querySelector('[data-ai="lfcancel"]'); if(F.polling&&!st){ var x=document.createElement('button'); x.className='btn'; x.setAttribute('data-ai','lfcancel'); x.textContent='Stop'; acts.appendChild(x); } if(!F.polling&&st) st.remove(); } } }
+function pollRun(fails){
+  if(F.stopPoll||!F.run){ F.polling=false; paintLF(); rerenderForm(); return; }
+  F.polling=true;
+  api('POST','/v1/lead-finder/runs/'+encodeURIComponent(F.run.id)+'/step',{}).then(function(d){
+    F.run=d.run; F.msg=''; paintLF();
+    if(F.run.status==='running'&&!F.stopPoll) setTimeout(function(){ pollRun(0); },300);
+    else { F.polling=false; paintLF(); rerenderForm(); loadRunsQuiet(); }
+  }).catch(function(e){
+    if(fails<3&&(e.retryable||e.status===0)){ F.msg='Connection problem. Retrying…'; paintLF(); setTimeout(function(){ pollRun(fails+1); },1500*(fails+1)); }
+    else { F.polling=false; F.msg=e.message+' Your results so far are saved. Press Resume to continue.'; paintLF(); rerenderForm(); }
+  });
+}
+function loadRunsQuiet(){ api('GET','/v1/lead-finder/runs').then(function(d){ F.runs=d.runs||[]; paintLF(); }).catch(function(){}); }
+function cancelFinder(){
+  F.stopPoll=true; if(!F.run) return;
+  api('POST','/v1/lead-finder/runs/'+encodeURIComponent(F.run.id)+'/cancel',{}).then(function(d){ F.run=d.run; F.polling=false; F.msg='Stopped. Results found so far are kept.'; paintLF(); rerenderForm(); }).catch(function(e){ F.msg=e.message; paintLF(); });
+}
+function filterChange(el){
+  var k=el.dataset.aiFilter;
+  if(k==='min') F.filter.min=parseInt(el.value,10)||0; if(k==='tier') F.filter.tier=el.value; if(k==='dup') F.filter.hideDup=el.checked; if(k==='sort') F.filter.sort=el.value;
+  paintLF();
+}
+function paintLF(){
+  var run=F.run, p=$('#lfProgress'), r=$('#lfResults'), rr=$('#lfRuns');
+  if(!p||!r) return;
+  var h='';
+  if(F.msg) h+='<div class="card"><p style="margin:0">'+esc(F.msg)+'</p>'+((run&&run.status==='running'&&!F.polling)?'<div class="ai-acts"><button class="btn pri" data-ai="lfresume">Resume</button></div>':'')+'</div>';
+  if(run){
+    var pg=run.progress||{}, pct=Math.min(100,Math.round(((pg.researched||0)/Math.max(1,pg.target||1))*100));
+    h+='<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>'+(run.status==='running'?'Searching…':run.status==='complete'?'Search complete':run.status==='cancelled'?'Stopped':'Search ended')+'</b>'+
+      '<span class="ai-note">'+(run.stage==='discover'?'Finding businesses from public sources':'Checked '+(pg.researched||0)+' of '+(pg.target||0)+' · '+(pg.found||0)+' found')+'</span></div>'+
+      '<div class="ai-prog" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div>'+
+      (run.notes||[]).map(function(n){ return '<p class="ai-note" style="margin:4px 0">'+esc(n)+'</p>'; }).join('')+
+      (run.usage?'<p class="ai-note" style="margin:4px 0">'+(run.usage.searches||0)+' web searches this run (estimated cost $'+(run.usage.cost_usd||0).toFixed(2)+').</p>':'')+'</div>';
+  }
+  p.innerHTML=h;
+  if(!run){ r.innerHTML=''; }
+  else {
+    var cs=(run.candidates||[]).filter(function(c){ return c.status==='done'||c.status==='duplicate'; });
+    var fl=F.filter, shown=cs.filter(function(c){ if(c.status==='duplicate') return !fl.hideDup; return (c.score||0)>=fl.min&&(!fl.tier||c.tier===fl.tier); });
+    shown.sort(function(a,b){ return fl.sort==='name'?String(a.name).localeCompare(b.name):((b.score||-1)-(a.score||-1)); });
+    var hdr='<div class="card"><div class="ai-filters">'+
+      '<label class="field"><span>Min score</span><input type="number" inputmode="numeric" min="0" max="100" value="'+fl.min+'" data-ai-filter="min" style="width:90px"></label>'+
+      '<label class="field"><span>Priority</span><select data-ai-filter="tier"><option value="">All</option>'+['HOT','HIGH','MEDIUM','LOW'].map(function(t){ return '<option'+(fl.tier===t?' selected':'')+'>'+t+'</option>'; }).join('')+'</select></label>'+
+      '<label class="field"><span>Sort</span><select data-ai-filter="sort"><option value="score"'+(fl.sort==='score'?' selected':'')+'>Score</option><option value="name"'+(fl.sort==='name'?' selected':'')+'>Name</option></select></label>'+
+      '<label class="field" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-ai-filter="dup"'+(fl.hideDup?' checked':'')+'> <span style="margin:0">Hide ones already in CRM</span></label></div>'+
+      '<span class="ai-note">'+shown.length+' of '+cs.length+' shown</span></div>';
+    r.innerHTML=(cs.length?hdr:'')+shown.map(candCard).join('');
+  }
+  if(rr){ rr.innerHTML=(F.runs&&F.runs.length>1)?'<div class="card"><b>Earlier searches</b><div class="ai-recent">'+F.runs.map(function(x){ var c=x.criteria||{}; return '<button class="ai-chip" data-ai="lfopen" data-id="'+esc(x.id)+'">'+esc((c.industry||'')+' · '+(c.location||'')+' · '+(x.created_at||'').slice(5,10))+'</button>'; }).join('')+'</div></div>':''; }
+}
+
+function factsList(arr){ return arr&&arr.length?'<ul>'+arr.map(function(x){ return '<li>'+esc(x.text)+chip(x.basis)+(x.source&&/^http/.test(x.source)?' '+link(x.source,'source'):'')+'</li>'; }).join('')+'</ul>':'<p class="ai-note">None found.</p>'; }
+function candCard(c){
+  if(c.status==='duplicate') return '<div class="card ai-cand"><b>'+esc(c.name)+'</b> <span class="ai-note">'+esc(c.city||'')+'</span><p class="ai-note" style="margin:6px 0 0">Already in your CRM as '+esc((c.duplicate_of&&c.duplicate_of.business)||'an existing lead')+'. Not researched again.</p>'+
+    (c.duplicate_of?'<div class="ai-acts"><button class="btn sm" data-open="'+esc(c.duplicate_of.lead_id)+'">Open that lead</button></div>':'')+'</div>';
+  var tier=String(c.tier||'LOW').toLowerCase(), w=c.web||{}, ct=c.contact||{}, soc=c.social||{}, rv=c.reviews, rec=c.recommended||{}, id=c.id;
+  var dr=F.drafts[c.id], busy=F.busy[c.id];
+  var socials=Object.keys(soc).map(function(k){ return link(soc[k].url,k)+(soc[k].last_activity?' <span class="ai-note">('+esc(soc[k].last_activity)+' — reported)</span>':''); }).join(' · ');
+  var h='<div class="card ai-cand" data-cand="'+esc(id)+'"><div class="ai-cand-h"><div class="ai-score t-'+tier+'" aria-label="Opportunity score '+c.score+'">'+c.score+'<small>'+esc(c.tier)+'</small></div>'+
+    '<div class="nm"><b>'+esc(c.name)+'</b><span>'+esc([c.city,c.state].filter(Boolean).join(', '))+(c.industry?' · '+esc(c.industry):'')+'</span></div></div>'+
+    '<div class="ai-grid">'+
+    '<div><h5>Website</h5><p>'+(w.url?link(w.url)+' '+chip(w.verified_url?'verified':'reported'):'None found in public search '+chip('inferred'))+'<br><span class="ai-note">'+({analysed:'Read directly',not_analysed:'Not analysed (the site asks not to be read)',unreachable:'Could not be loaded',none_found:'Absence is not proof one does not exist',unknown:''}[w.state]||'')+'</span></p></div>'+
+    '<div><h5>Social</h5><p>'+(socials||'None found '+chip('inferred'))+'</p></div>'+
+    '<div><h5>Reviews</h5><p>'+(rv?esc(rv.rating)+'★ from '+esc(rv.count==null?'?':rv.count)+' '+chip('verified')+' '+link(rv.source,'source'):'None found')+'</p></div>'+
+    '<div><h5>Contact</h5><p>'+([ct.phone&&esc(ct.phone.value)+chip(ct.phone.basis),ct.email&&esc(ct.email.value)+chip(ct.email.basis),ct.owner&&'Owner: '+esc(ct.owner.value)+chip(ct.owner.basis)].filter(Boolean).join('<br>')||'No public contact found')+'</p></div>'+
+    '<div><h5>Detected problems</h5>'+factsList(c.problems)+'</div><div><h5>Growth signals</h5>'+factsList(c.growth)+'</div>'+
+    '<div><h5>Why this lead</h5>'+factsList(c.why)+'</div>'+
+    '<div><h5>Recommended '+chip('inferred')+'</h5><p><b>'+esc(rec.service||'')+'</b><br>'+esc(rec.offer||'')+'<br><span class="ai-note">Channel: '+esc(rec.channel||'')+' — '+esc(rec.channel_reason||'')+'</span></p></div></div>'+
+    '<details><summary>Score breakdown and sources</summary><div style="margin-top:8px">'+(c.factors||[]).map(function(f){ return '<div class="ai-factor"><b>'+f.points+'/'+f.max+'</b><span>'+esc(f.label)+chip(f.basis)+'<br><span class="ai-note">'+esc(f.note)+'</span></span></div>'; }).join('')+
+    '<p class="ai-note" style="margin-top:10px"><b>Sources:</b> '+((c.evidence||[]).map(function(e){ return link(e.url,e.label); }).join(' · ')||'none')+'</p>'+
+    (c.skipped&&c.skipped.length?'<p class="ai-note">'+c.skipped.map(esc).join(' ')+'</p>':'')+'</div></details>'+
+    '<p class="ai-note" style="margin:10px 0 0">Researched '+esc((c.researched_at||'').slice(0,10))+(c.from_cache?' (from recent research, not repeated)':'')+'. “Verified” = read from the business’s own page or a cited source. “Inferred” = my judgement, not confirmed.</p>'+
+    '<div class="ai-acts">'+
+    '<button class="btn sm" data-ai="c-research" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Research more</button>'+
+    (c.saved_lead_id?'<button class="btn sm mint" data-open="'+esc(c.saved_lead_id)+'">Saved ✓ Open lead</button>':'<button class="btn sm pri" data-ai="c-save" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Save lead</button>')+
+    '<select data-ai-ch="'+esc(id)+'" aria-label="Outreach channel"><option value="instagram_dm">Instagram DM</option><option value="sms">SMS</option><option value="email">Email</option></select>'+
+    '<button class="btn sm" data-ai="c-outreach" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Generate outreach</button>'+
+    '<button class="btn sm" data-ai="c-call" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Call script</button>'+
+    '<button class="btn sm" data-ai="c-ammo" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Sales ammo</button>'+
+    '<input type="date" data-ai-fu="'+esc(id)+'" aria-label="Follow-up date"><button class="btn sm" data-ai="c-follow" data-id="'+esc(id)+'"'+(busy?' disabled':'')+'>Add follow-up</button></div>'+
+    (busy?'<p class="ai-note" style="margin-top:8px"><span class="spin"></span> '+esc(busy)+'</p>':'')+
+    (dr?'<div class="ai-draft"><b>'+esc(dr.title)+'</b><pre>'+esc(dr.text)+'</pre><button class="btn sm mint" data-ai="copy" data-id="'+esc(id)+'">Copy</button></div>':'')+'</div>';
+  return h;
+}
+
+/* candidate buttons -> the same tool registry, permissions and audit as the agent */
+function tool(name,args,label){ return api('POST','/v1/ai/tool',{tool:name,args:args,label:label}).then(function(d){
+  if(d.pending){ S.pending.push(d.pending); openDock(true); paint(); throw mkErr('This needs your approval first. See the AI panel.',0); }
+  return d; }); }
+function candAct(kind,id){
+  var run=F.run; if(!run) return;
+  var base={run_id:run.id,candidate_id:id}; var c=(run.candidates||[]).filter(function(x){ return x.id===id; })[0];
+  var labels={research:'Researching more…',save:'Saving…',outreach:'Writing from the research…',call:'Writing the script…',ammo:'Writing talking points…',follow:'Scheduling…'};
+  F.busy[id]=labels[kind]; paintLF();
+  var p;
+  if(kind==='research') p=tool('research_lead',base,'Research more').then(function(d){ refreshRun(); return d; });
+  else if(kind==='save') p=tool('save_lead_finder_lead',base,'Save lead').then(function(d){ return afterSave(d); });
+  else if(kind==='outreach'){ var ch=($('[data-ai-ch="'+id+'"]')||{}).value||'instagram_dm'; p=tool('generate_outreach',Object.assign({channel:ch},base),'Generate '+ch).then(function(d){ F.drafts[id]={title:({instagram_dm:'Instagram DM',sms:'Text message',email:'Email'}[ch]),text:d.result.draft}; }); }
+  else if(kind==='call') p=tool('generate_call_script',base,'Call script').then(function(d){ F.drafts[id]={title:'Call script',text:d.result.draft}; });
+  else {
+    var due=(($('[data-ai-fu="'+id+'"]')||{}).value)||'';
+    if(kind==='follow'&&!due){ F.busy[id]=''; F.msg='Pick a follow-up date first.'; paintLF(); return; }
+    p=(c&&c.saved_lead_id?Promise.resolve({result:{lead_id:c.saved_lead_id}}):tool('save_lead_finder_lead',base,'Save lead').then(afterSave)).then(function(d){
+      var lid=d.result.lead_id;
+      return kind==='ammo'?tool('generate_sales_ammo',{lead_id:lid},'Sales ammo').then(function(r){ F.drafts[id]={title:'Sales ammo (saved to the lead)',text:r.result.added.map(function(a){ return '• '+a; }).join('\n')}; afterChange({leads:true}); })
+        :tool('create_followup',{lead_id:lid,due:due},'Add follow-up').then(function(){ F.drafts[id]={title:'Follow-up scheduled',text:'Follow-up set for '+due+'. It is on your Follow-ups list.'}; afterChange({leads:true,tasks:true}); });
+    });
+  }
+  p.catch(function(e){ F.msg=e.message; }).then(function(){ F.busy[id]=''; refreshRun(); paintLF(); });
+}
+function afterSave(d){ afterChange({leads:true}); toast('Saved to Leads'); return d; }
+
+/* ---------- lead detail card ---------- */
+function nextAction(x){
+  var today=L.today(), r=x.research, intel=x.ai_intel;
+  if(x.callStatus==='Do not call') return 'Marked do not call. Leave this one alone.';
+  if(x.nextFollow&&x.nextFollow<today) return 'Follow-up was due '+L.fmtDate(x.nextFollow)+'. Reach out today.';
+  if(!r&&!intel) return 'Run research first so outreach can be specific. Say “Research '+(x.business||'this lead')+'”.';
+  if(r&&(r.status==='researching'||r.status==='pending')) return 'Research is running. Check back in a minute.';
+  if(!x.lastContacted&&(x.callStatus||'Not called')==='Not called'){
+    var ch=intel&&intel.recommended&&intel.recommended.channel; return 'Not contacted yet. '+(ch&&ch!=='Unknown'?'Suggested first touch: '+ch+' (inference).':'Write the first message.');
+  }
+  if(!x.nextFollow) return 'Contacted, but no follow-up is scheduled. Say “Remind me to follow up Friday.”';
+  return 'Next follow-up: '+L.fmtDate(x.nextFollow)+'.';
+}
+function leadCard(x){
+  var sc=L.scoreLead(x), intel=x.ai_intel, r=x.research;
+  var h='<div class="card ai-lead"><div class="lw-h"><h3>NONMAJORITY AI</h3>'+(r?'<span class="pill flat">Research: '+esc(r.status)+'</span>':'<span class="pill flat">Not researched</span>')+'</div>';
+  h+='<div class="next"><b>Recommended next action</b><br>'+esc(nextAction(x))+'</div>';
+  h+='<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div><div class="ai-note">CRM score</div><div class="sc-big">'+sc.score+'</div></div>';
+  if(intel) h+='<div><div class="ai-note">Opportunity score (Lead Finder)</div><div class="sc-big">'+intel.score+'</div><span class="pill flat">'+esc(intel.tier)+'</span></div>';
+  h+='</div>';
+  if(intel){
+    h+='<div class="ai-grid"><div><h5>Why this lead</h5>'+factsList(intel.why)+'</div><div><h5>Detected problems</h5>'+factsList(intel.problems)+'</div>'+
+       '<div><h5>Recommended '+chip('inferred')+'</h5><p><b>'+esc((intel.recommended||{}).service||'')+'</b><br>'+esc((intel.recommended||{}).offer||'')+'</p></div>'+
+       '<div><h5>Sources</h5><p>'+((intel.evidence||[]).map(function(e){ return link(e.url,e.label); }).join(' · ')||'none')+'<br><span class="ai-note">Researched '+esc((intel.researched_at||'').slice(0,10))+'</span></p></div></div>';
+  }
+  var am=x.ammo||[]; h+='<h5 class="ai-note" style="margin:14px 0 4px;text-transform:uppercase;letter-spacing:.08em">Sales ammo</h5>'+(am.length?'<ul style="margin:0;padding-left:18px;font-size:14px">'+am.slice(0,4).map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ul>':'<p class="ai-note">None yet.</p>');
+  var dr=x.ai_drafts||{}, keys=Object.keys(dr);
+  if(keys.length){ h+='<h5 class="ai-note" style="margin:14px 0 4px;text-transform:uppercase;letter-spacing:.08em">Saved AI drafts</h5>'+keys.map(function(k){ return '<div class="ai-draft"><b>'+esc(k.replace(/_/g,' '))+'</b> <span class="ai-note">'+esc((dr[k].at||'').slice(0,10))+'</span><pre>'+esc(dr[k].text)+'</pre></div>'; }).join(''); }
+  h+='<div class="ai-acts"><button class="btn sm" data-ai="l-ammo" data-id="'+esc(x.id)+'">Generate sales ammo</button>'+
+     '<button class="btn sm" data-ai="l-dm" data-id="'+esc(x.id)+'">Instagram DM</button><button class="btn sm" data-ai="l-call" data-id="'+esc(x.id)+'">Call script</button></div>';
+  h+='<form class="ai-form" data-ai-leadform="'+esc(x.id)+'" style="margin-top:12px"><button type="button" class="ai-mic" data-ai="l-mic" data-id="'+esc(x.id)+'" aria-label="Speak a command about this lead">'+ICO_MIC+'</button>'+
+     '<input class="ai-in" name="cmd" placeholder="Tell the AI what to do with this lead…" autocomplete="off" aria-label="Command about this lead"><button class="btn pri sm" type="submit">Go</button></form></div>';
+  return h;
+}
+function leadCmd(id,text,via){ S.context.lead_id=id; openDock(true); send(text,via||'text'); }
+function leadTool(id,name,args,label,okText){
+  toast(label+'…');
+  tool(name,Object.assign({lead_id:id},args||{}),label).then(function(d){
+    toast(okText||'Done'); return (window.LDCLOUD?LDCLOUD.pull():Promise.resolve()).then(function(){ L.render(); if(L.state.open) L.renderSheet(); });
+  }).catch(function(e){ toast(e.message); });
+}
+
+/* ---------- events ---------- */
+document.addEventListener('submit',function(e){
+  var f=e.target; if(!f||!f.matches) return;
+  if(f.matches('[data-ai-form]')){ e.preventDefault(); var i=f.querySelector('.ai-in'); var t=i.value; i.value=''; send(t,'text'); }
+  else if(f.matches('[data-ai-leadform]')){ e.preventDefault(); var i2=f.querySelector('.ai-in'); var t2=i2.value; i2.value=''; leadCmd(f.dataset.aiLeadform,t2,'text'); }
+},true);
+document.addEventListener('change',function(e){
+  var t=e.target; if(!t||!t.dataset) return;
+  if(t.dataset.aiAuto){ saveSettings({autonomy:t.dataset.aiAuto}); }
+  if(t.dataset.aiTrust){ var cur=(S.settings&&S.settings.settings.trusted_tools||[]).slice(), k=t.dataset.aiTrust, i=cur.indexOf(k); if(t.checked&&i<0) cur.push(k); if(!t.checked&&i>-1) cur.splice(i,1); saveSettings({trusted_tools:cur}); }
+});
+document.addEventListener('click',function(e){
+  var el=e.target.closest&&e.target.closest('[data-ai]'); if(!el) return;
+  var a=el.dataset.ai, id=el.dataset.id;
+  switch(a){
+    case 'dock': e.preventDefault(); openDock(); break;
+    case 'open-page': openDock(false); L.go('ai'); break;
+    case 'mic': e.preventDefault(); toggleMic(); break;
+    case 'stop': stopAll(); break;
+    case 'run': send(el.dataset.t,'text'); break;
+    case 'approve': decide(id,'approve','tap'); break;
+    case 'decline': decide(id,'decline','tap'); break;
+    case 'dismiss': setErr(null); break;
+    case 'retry': var er=S.err; setErr(null); if(er&&er.retryText) send(er.retryText,er.retryVia); break;
+    case 'lfstart': startFinder(); break;
+    case 'lfcancel': cancelFinder(); break;
+    case 'lfresume': F.stopPoll=false; F.msg=''; pollRun(0); rerenderForm(); break;
+    case 'lfopen': api('GET','/v1/lead-finder/runs/'+encodeURIComponent(id)).then(function(d){ F.run=d.run; F.drafts={}; F.msg=''; paintLF(); }).catch(function(er2){ F.msg=er2.message; paintLF(); }); break;
+    case 'c-research': candAct('research',id); break;
+    case 'c-save': candAct('save',id); break;
+    case 'c-outreach': candAct('outreach',id); break;
+    case 'c-call': candAct('call',id); break;
+    case 'c-ammo': candAct('ammo',id); break;
+    case 'c-follow': candAct('follow',id); break;
+    case 'copy': var d=F.drafts[id]; if(d) L.copyText(d.text); break;
+    case 'l-ammo': leadTool(id,'generate_sales_ammo',{},'Writing talking points','Sales ammo saved'); break;
+    case 'l-dm': leadTool(id,'generate_outreach',{channel:'instagram_dm'},'Writing the DM','Draft saved on the lead'); break;
+    case 'l-call': leadTool(id,'generate_call_script',{},'Writing the call script','Draft saved on the lead'); break;
+    case 'l-mic': S.context.lead_id=id; openDock(true); toggleMic(); break;
+  }
+});
+window.addEventListener('online',function(){ if(S.err&&S.err.retry) setErr(null); });
+
+window.LDAI={panel:panel,settingsCard:settingsCard,leadCard:leadCard,send:send,state:S};
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ensureDock); else ensureDock();
+})();
 </script>
 </body>
 </html>
