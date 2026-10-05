@@ -18515,7 +18515,7 @@ function toast(m){ try{ L.toast(m); }catch(e){} }
 /* ---------- panel markup (dock + page share it) ---------- */
 function panel(){
   return '<div class="ai-panel" data-ai-panel>'+
-    '<div class="ai-top"><span class="ai-status" data-ai-slot="status" role="status" aria-live="polite"></span><span style="flex:1"></span>'+
+    '<div class="ai-top"><span class="ai-status" data-ai-slot="status" role="status" aria-live="polite"></span><span data-ai-slot="env"></span><span style="flex:1"></span>'+
       '<button class="btn sm ai-stop" data-ai="stop" aria-label="Stop and cancel">Stop</button></div>'+
     '<div class="ai-you" data-ai-slot="you"></div>'+
     '<div class="ai-reply" data-ai-slot="reply" aria-live="polite"></div>'+
@@ -18527,8 +18527,17 @@ function panel(){
     '<div class="ai-recent" data-ai-slot="recent" aria-label="Recent commands"></div></div>';
 }
 var STATUS={idle:'Ready',listening:'Listening…',processing:'Working on it…',speaking:'Speaking…',error:'Needs attention'};
+var PROD_API='https://nonmajority-api.gregorybutler133.workers.dev';
+function envBadge(){
+  var c=C(); if(!c||!c.apiUrl) return '';
+  var u=String(c.apiUrl).replace(/\/+$/,'');
+  if(u===PROD_API) return '';
+  var host=u.replace(/^https?:\/\//,'');
+  return '<span class="pill flat" style="color:var(--warn);border-color:var(--warn)" title="This browser is talking to a non-production API">DEV API \u00B7 '+esc(host)+'</span>';
+}
 function paint(){
   var sTxt=STATUS[S.mode]||'Ready';
+  $$('[data-ai-slot="env"]').forEach(function(el){ el.innerHTML=envBadge(); });
   $$('[data-ai-slot="status"]').forEach(function(el){ el.className='ai-status '+S.mode; el.innerHTML='<span class="ai-dot"></span>'+esc(sTxt); });
   $$('[data-ai-slot="you"]').forEach(function(el){ el.textContent=S.you?('“'+S.you+'”'):''; });
   $$('[data-ai-slot="reply"]').forEach(function(el){ el.textContent=S.reply; });
