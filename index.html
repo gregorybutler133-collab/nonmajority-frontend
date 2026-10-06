@@ -18912,6 +18912,10 @@ function paintLF(){
 }
 
 function factsList(arr){ return arr&&arr.length?'<ul>'+arr.map(function(x){ return '<li>'+esc(x.text)+chip(x.basis)+(x.source&&/^http/.test(x.source)?' '+link(x.source,'source'):'')+'</li>'; }).join('')+'</ul>':'<p class="ai-note">None found.</p>'; }
+function confChip(cf){
+  if(!cf||!cf.level) return '';
+  return '<span class="pill flat" title="'+esc((cf.reasons||[]).join(' '))+'" aria-label="Evidence confidence '+esc(cf.level)+'. '+esc((cf.reasons||[]).join(' '))+'">Confidence: '+esc(cf.level)+'</span>';
+}
 function candCard(c){
   if(c.status==='duplicate') return '<div class="card ai-cand"><b>'+esc(c.name)+'</b> <span class="ai-note">'+esc(c.city||'')+'</span><p class="ai-note" style="margin:6px 0 0">Already in your CRM as '+esc((c.duplicate_of&&c.duplicate_of.business)||'an existing lead')+'. Not researched again.</p>'+
     (c.duplicate_of?'<div class="ai-acts"><button class="btn sm" data-open="'+esc(c.duplicate_of.lead_id)+'">Open that lead</button></div>':'')+'</div>';
@@ -18919,7 +18923,7 @@ function candCard(c){
   var dr=F.drafts[c.id], busy=F.busy[c.id];
   var socials=Object.keys(soc).map(function(k){ return link(soc[k].url,k)+(soc[k].last_activity?' <span class="ai-note">('+esc(soc[k].last_activity)+' — reported)</span>':''); }).join(' · ');
   var h='<div class="card ai-cand" data-cand="'+esc(id)+'"><div class="ai-cand-h"><div class="ai-score t-'+tier+'" aria-label="Opportunity score '+c.score+'">'+c.score+'<small>'+esc(c.tier)+'</small></div>'+
-    '<div class="nm"><b>'+esc(c.name)+'</b><span>'+esc([c.city,c.state].filter(Boolean).join(', '))+(c.industry?' · '+esc(c.industry):'')+'</span></div></div>'+
+    '<div class="nm"><b>'+esc(c.name)+'</b><span>'+esc([c.city,c.state].filter(Boolean).join(', '))+(c.industry?' · '+esc(c.industry):'')+'</span>'+confChip(c.confidence)+'</div></div>'+
     '<div class="ai-grid">'+
     '<div><h5>Website</h5><p>'+(w.url?link(w.url)+' '+chip(w.verified_url?'verified':'reported'):'None found in public search '+chip('inferred'))+'<br><span class="ai-note">'+({analysed:'Read directly',not_analysed:'Not analysed (the site asks not to be read)',unreachable:'Could not be loaded',none_found:'Absence is not proof one does not exist',unknown:''}[w.state]||'')+'</span></p></div>'+
     '<div><h5>Social</h5><p>'+(socials||'None found '+chip('inferred'))+'</p></div>'+
@@ -18990,7 +18994,7 @@ function leadCard(x){
   var h='<div class="card ai-lead"><div class="lw-h"><h3>NONMAJORITY AI</h3>'+(r?'<span class="pill flat">Research: '+esc(r.status)+'</span>':'<span class="pill flat">Not researched</span>')+'</div>';
   h+='<div class="next"><b>Recommended next action</b><br>'+esc(nextAction(x))+'</div>';
   h+='<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div><div class="ai-note">CRM score</div><div class="sc-big">'+sc.score+'</div></div>';
-  if(intel) h+='<div><div class="ai-note">Opportunity score (Lead Finder)</div><div class="sc-big">'+intel.score+'</div><span class="pill flat">'+esc(intel.tier)+'</span></div>';
+  if(intel) h+='<div><div class="ai-note">Opportunity score (Lead Finder)</div><div class="sc-big">'+intel.score+'</div><span class="pill flat">'+esc(intel.tier)+'</span>'+(intel.confidence?'<br>'+confChip(intel.confidence):'')+'</div>';
   h+='</div>';
   if(intel){
     h+='<div class="ai-grid"><div><h5>Why this lead</h5>'+factsList(intel.why)+'</div><div><h5>Detected problems</h5>'+factsList(intel.problems)+'</div>'+
