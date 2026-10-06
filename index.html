@@ -9102,6 +9102,36 @@ document.addEventListener('click',function(e){
       if(rx2) rx2.innerHTML='<div class="warnbox">'+esc(String(e.message||e))+'</div>';
     });
   }
+  else if(id==='cloudLogin'){
+    $$('[data-cloud-set]').forEach(function(f){ window.LDCLOUD.cfg()[f.dataset.cloudSet]=f.value.trim(); });
+    var lem=(($('#cloudEmail')||{}).value||'').trim(), lpw=($('#cloudPassword')||{}).value||'';
+    var lr=$('#cloudLoginResult');
+    if(!window.LDCLOUD.cfg().apiUrl){ if(lr) lr.innerHTML='<div class="warnbox">Enter the Worker address first.</div>'; return; }
+    if(!lem||!lpw){ if(lr) lr.innerHTML='<div class="warnbox">Enter your email and password.</div>'; return; }
+    window.LDCLOUD.cfg().pendingEmail=lem; L.save();
+    if(lr) lr.innerHTML='<p class="hint"><span class="spin"></span> Logging in…</p>';
+    window.LDCLOUD.passwordLogin(lem,lpw).then(function(r){
+      var pw=$('#cloudPassword'); if(pw) pw.value='';
+      var c=window.LDCLOUD.cfg();
+      if(window.LDINT) LDINT.setStatus('cloudsync','connected',{account:c.email||'',connectedAt:new Date().toISOString(),hint:(r.workspaces&&r.workspaces.length)?('Workspace: '+r.workspaces[0].name):'',lastError:''});
+      L.render(); L.toast('Logged in'); window.LDCLOUD.pull();
+    }).catch(function(e){
+      var pw=$('#cloudPassword'); if(pw) pw.value='';
+      var lr2=$('#cloudLoginResult'); var m=e&&e.status===429?'Too many attempts. Wait a few minutes and try again.':(e&&e.status===401?'Invalid email or password.':String((e&&e.message)||e).slice(0,140));
+      if(lr2) lr2.innerHTML='<div class="warnbox">'+esc(m)+'</div>';
+    });
+  }
+  else if(id==='cloudSetPassword'){
+    var cur=($('#cloudPwCur')||{}).value||'', n1=($('#cloudPwNew')||{}).value||'', n2=($('#cloudPwNew2')||{}).value||'', pr=$('#cloudPwResult');
+    if(n1!==n2){ if(pr) pr.innerHTML='<div class="warnbox">The two new passwords do not match.</div>'; return; }
+    if(pr) pr.innerHTML='<p class="hint"><span class="spin"></span> Saving…</p>';
+    window.LDCLOUD.setPassword(cur,n1).then(function(r){
+      ['#cloudPwCur','#cloudPwNew','#cloudPwNew2'].forEach(function(q){ var el=$(q); if(el) el.value=''; });
+      L.render(); L.toast(r.message||'Password saved');
+    }).catch(function(e){
+      var pr2=$('#cloudPwResult'); if(pr2) pr2.innerHTML='<div class="warnbox">'+esc(String((e&&e.message)||e).slice(0,160))+'</div>';
+    });
+  }
   else if(id==='cloudConnect'){
     var tok=($('#cloudToken')||{}).value.trim();
     if(!tok){ L.toast('Paste the login code first'); return; }
@@ -9140,13 +9170,19 @@ document.addEventListener('click',function(e){
     });
   }
   else if(id==='cloudDisconnect'){
-    confirmBox('Disconnect cloud sync?','Your leads stay exactly as they are on this device. Nothing is deleted — this just stops sending changes to the cloud from here.','Disconnect',function(){
-      window.LDCLOUD.disconnect();
-      if(window.LDINT) LDINT.setStatus('cloudsync','disconnected',{account:'',hint:'',connectedAt:'',lastSync:'',lastError:''});
-      L.render(); L.toast('Disconnected');
+    confirmBox('Log out and disconnect?','Your leads stay exactly as they are on this device. Nothing is deleted — this logs you out on the server and stops sending changes to the cloud from here.','Log out',function(){
+      window.LDCLOUD.logout().then(function(){
+        window.LDCLOUD.disconnect();
+        if(window.LDINT) LDINT.setStatus('cloudsync','disconnected',{account:'',hint:'',connectedAt:'',lastSync:'',lastError:''});
+        L.render(); L.toast('Logged out');
+      });
     });
   }
 },false);
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target&&(e.target.id==='cloudPassword'||e.target.id==='cloudEmail')){ var b=document.getElementById('cloudLogin'); if(b) b.click(); }
+});
 
 document.addEventListener('change',function(e){
   if(e.target&&e.target.id==='cloudWs'){
@@ -9607,6 +9643,7 @@ function connectWithToken(token){
   return authedFetch('/v1/auth/me').then(function(r){
     c.email=(r.user||{}).email||'';
     c.workspaces=r.workspaces||[];
+    c.hasPassword=!!r.has_password; c._pwChecked=true;
     if(!c.workspaceId&&c.workspaces.length) c.workspaceId=c.workspaces[0].id;
     L.save();
     return r;
@@ -9614,6 +9651,38 @@ function connectWithToken(token){
     c.token=''; L.save();
     throw e;
   });
+}
+
+/* ---- password login (the primary login). The password is only ever read from the form field and sent once over HTTPS;
+   it is never kept in DB.settings, localStorage, the DOM after submit, or any log. ---- */
+function apiJson(path,method,body,token){
+  var c=cfg(), headers={'Content-Type':'application/json'}; if(token) headers['Authorization']='Bearer '+token;
+  return fetch(c.apiUrl.replace(/\/+$/,'')+path,{method:method,headers:headers,body:body?JSON.stringify(body):undefined}).then(function(r){
+    return r.text().then(function(t){ var d=null; try{ d=JSON.parse(t); }catch(e){}
+      if(!r.ok){ var m=(d&&d.error)||('Request failed ('+r.status+')'); var er=new Error(m); er.status=r.status; throw er; }
+      return d||{}; });
+  });
+}
+function passwordLogin(email,password){
+  var c=cfg();
+  return apiJson('/v1/auth/login','POST',{email:email,password:password}).then(function(r){
+    c.token=r.token; c.email=(r.user||{}).email||email; c.workspaces=r.workspaces||[]; c.hasPassword=true; c._pwChecked=true;
+    if(!c.workspaceId||!c.workspaces.some(function(w){ return w.id===c.workspaceId; })) c.workspaceId=c.workspaces.length?c.workspaces[0].id:'';
+    c.pendingEmail=''; L.save(); return r;
+  });
+}
+function setPassword(current,next){
+  var c=cfg(), b={new_password:next}; if(current) b.current_password=current;
+  return apiJson('/v1/auth/password','POST',b,c.token).then(function(r){ c.hasPassword=true; L.save(); return r; });
+}
+function refreshMe(){
+  var c=cfg(); if(!c.token||c._pwChecked) return Promise.resolve();
+  c._pwChecked=true;
+  return authedFetch('/v1/auth/me').then(function(r){ c.hasPassword=!!r.has_password; L.save(); }).catch(function(){});
+}
+function logout(){
+  var c=cfg(); if(!c.token) return Promise.resolve();
+  return apiJson('/v1/auth/logout','POST',null,c.token).catch(function(){});   /* best effort: revokes the session on the server */
 }
 
 function disconnect(){
@@ -10378,6 +10447,7 @@ window.addEventListener('online',function(){ flushFollowUps(); });
 
 window.LDCLOUD={
   cfg:cfg, ready:ready, requestLink:requestLink, connectWithToken:connectWithToken,
+  passwordLogin:passwordLogin, setPassword:setPassword, refreshMe:refreshMe, logout:logout,
   disconnect:disconnect, diffAndQueue:diffAndQueue, pull:pull, flush:flush,
   diffAndQueueContacts:diffAndQueueContacts, pullContacts:pullContacts, flushContacts:flushContacts,
   diffAndQueueTasks:diffAndQueueTasks, pullTasks:pullTasks, flushTasks:flushTasks,
@@ -14366,13 +14436,18 @@ function cloudSyncBody(r){
      '<input data-cloud-set="apiUrl" placeholder="https://nonmajority-api.workers.dev" value="'+esc(c.apiUrl||'')+'" onclick="event.stopPropagation()"></label>';
 
   if(!connected){
-    g+='<label class="field"><span>Your email</span>'+
-       '<input id="cloudEmail" type="email" placeholder="you@example.com" value="'+esc(c.pendingEmail||'')+'" onclick="event.stopPropagation()"></label>'+
-       '<button class="btn sm mint" id="cloudSendLink">Send login link</button>'+
+    g+='<label class="field"><span>Email</span>'+
+       '<input id="cloudEmail" type="email" autocomplete="username" placeholder="you@example.com" value="'+esc(c.pendingEmail||'')+'" onclick="event.stopPropagation()"></label>'+
+       '<label class="field"><span>Password</span>'+
+       '<input id="cloudPassword" type="password" autocomplete="current-password" placeholder="your password" onclick="event.stopPropagation()"></label>'+
+       '<div class="intacts"><button class="btn sm mint" id="cloudLogin">Log in</button></div>'+
+       '<div id="cloudLoginResult" role="status" aria-live="polite"></div>'+
+       '<details style="margin-top:14px"><summary class="hint" style="cursor:pointer">Recovery: use an emailed login link or a login code</summary>'+
+       '<button class="btn sm" id="cloudSendLink" style="margin-top:8px">Send login link</button>'+
        '<div id="cloudLinkResult"></div>'+
        '<label class="field" style="margin-top:12px"><span>Paste your login code</span>'+
        '<input id="cloudToken" type="password" autocomplete="off" placeholder="paste the code from the login page" onclick="event.stopPropagation()"></label>'+
-       '<div class="intacts"><button class="btn sm" id="cloudConnect">Connect</button></div>';
+       '<div class="intacts"><button class="btn sm" id="cloudConnect">Connect</button></div></details>';
   } else {
     if(c.workspaces&&c.workspaces.length>1){
       g+='<label class="field"><span>Which business syncs from this device</span><select id="cloudWs" onclick="event.stopPropagation()">'+
@@ -14383,7 +14458,19 @@ function cloudSyncBody(r){
     g+='<div id="cloudSyncResult"></div>';
     g+='<div class="intacts">'+
        '<button class="btn sm mint" id="cloudSyncNow">Sync now</button>'+
-       '<button class="btn sm danger" id="cloudDisconnect">Disconnect</button></div>';
+       '<button class="btn sm danger" id="cloudDisconnect">Log out &amp; disconnect</button></div>';
+    if(c.hasPassword===undefined&&!c._pwChecked){ CL.refreshMe().then(function(){ if(c.hasPassword!==undefined) L.render(); }); }
+    g+='<h4 style="margin:18px 0 6px">Account security</h4>';
+    if(c.hasPassword){
+      g+='<p class="hint">Change your password. Your other devices are signed out when you do.</p>'+
+         '<label class="field"><span>Current password</span><input id="cloudPwCur" type="password" autocomplete="current-password" onclick="event.stopPropagation()"></label>';
+    } else {
+      g+='<p class="hint">You do not have a password yet. Set one so you can log in with your email and password.</p>';
+    }
+    g+='<label class="field"><span>New password (12+ characters)</span><input id="cloudPwNew" type="password" autocomplete="new-password" onclick="event.stopPropagation()"></label>'+
+       '<label class="field"><span>Repeat new password</span><input id="cloudPwNew2" type="password" autocomplete="new-password" onclick="event.stopPropagation()"></label>'+
+       '<div class="intacts"><button class="btn sm" id="cloudSetPassword">'+(c.hasPassword?'Change password':'Set password')+'</button></div>'+
+       '<div id="cloudPwResult" role="status" aria-live="polite"></div>';
   }
   return g;
 }
