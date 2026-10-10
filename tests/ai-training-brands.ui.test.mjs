@@ -49,7 +49,7 @@ await clickNm('masterDo'); await page.waitForTimeout(400);
 d = await nm();
 check('backup of the previous training was saved first', d.flags.trainingBackup && d.flags.trainingBackup.training.brands.digital.industry === 'OLD INDUSTRY TEXT', d.flags.trainingBackup && d.flags.trainingBackup.training.brands.digital.industry);
 check('digital profile overwritten with master text', /B2B digital growth agency/.test(d.training.brands.digital.industry) && /Don't be the majority/.test(d.training.brands.digital.positioning));
-check('outdoor profile filled with master text', /City > Trail > Summit/.test(d.training.brands.outdoor.positioning) && /outdoor sports/.test(d.training.brands.outdoor.targetMarket));
+check('outdoor profile filled with master text', /CITY → TRAIL → SUMMIT/.test(d.training.brands.outdoor.positioning) && /mountain bikers/.test(d.training.brands.outdoor.targetMarket));
 check('master rules added with brand scope and priority', d.instructions.some((i) => i.brand === 'digital' && i.priority === 'CRITICAL' && /guaranteed rankings/.test(i.text)) && d.instructions.some((i) => i.brand === 'outdoor'));
 check('existing example survived the overwrite', d.examples.some((e) => e.id === 'ex_legacy'));
 await reload();
@@ -70,16 +70,37 @@ check('brand chip selects NONMAJORITY DIGITAL', (await nm()).training.activeBran
 let sys = await ask('ask_ai', 'Write a follow-up for a plumber lead who asked about a website');
 check('digital: training block is in the AI request', /AI TRAINING CONTEXT/.test(sys) && /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(sys));
 check('digital: brand profile + rules reach the request', /B2B digital growth agency/.test(sys) && /guaranteed rankings/.test(sys) && /smallest appropriate solution/.test(sys));
-check('digital: outdoor brand material is NOT in the request', !/City > Trail > Summit/.test(sys) && !/Mountain-inspired streetwear/i.test(sys) && !/authentic to people who actually do outdoor sports/.test(sys), sys.match(/.{60}Trail.{60}/));
+check('digital: outdoor brand material is NOT in the request', !/CITY → TRAIL → SUMMIT/.test(sys) && !/Mountain-inspired streetwear/i.test(sys) && !/authentic to people who actually do outdoor sports/.test(sys), sys.match(/.{60}Trail.{60}/));
 check('hierarchy and example rules are in the request', /never copy their wording/.test(sys) && /stay separate/.test(sys));
 
 await page.click('.nm-brandbar button:has-text("NON MAJORITY")'); await page.waitForTimeout(300);
 sys = await ask('ask_ai', 'Write a caption for a new snowboard jacket drop');
-check('outdoor: active brand + profile reach the request', /ACTIVE BRAND: NON MAJORITY/.test(sys) && /City > Trail > Summit/.test(sys) && /outdoor sports/.test(sys));
+check('outdoor: active brand + profile reach the request', /ACTIVE BRAND: NON MAJORITY/.test(sys) && /CITY → TRAIL → SUMMIT/.test(sys) && /outdoor sports/.test(sys));
 check('outdoor: agency profile, pricing/offer rules are NOT in the request', !/B2B digital growth agency/.test(sys) && !/guaranteed rankings/.test(sys) && !/smallest appropriate solution/.test(sys) && !/Don't be the majority/.test(sys));
 check('shared rules still apply to both brands', /Never fabricate/.test(sys) && /API keys/.test(sys));
 sys = await ask('outreach_email', 'Write outreach to a roofing company with a slow website');
-check('outreach is always NONMAJORITY DIGITAL, even when outdoor is selected', /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(sys) && !/City > Trail > Summit/.test(sys));
+check('outreach is always NONMAJORITY DIGITAL, even when outdoor is selected', /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(sys) && !/CITY → TRAIL → SUMMIT/.test(sys));
+
+/* NON MAJORITY master brand instructions reach the outdoor request — and only the outdoor request */
+await page.click('.nm-brandbar button:has-text("NON MAJORITY")'); await page.waitForTimeout(300);
+d = await nm();
+check('four NON MAJORITY pillars saved, tagged to the outdoor brand', ['Outdoors', 'Build', 'Philosophy', 'The Few'].every((n) => d.training.pillars.some((p) => p.name === n && p.brand === 'outdoor')), d.training.pillars);
+check('outdoor profile has the extra brand-only fields (interests, visual, product rules, stage)', ['interests', 'visual', 'productRules', 'stage'].every((k) => /\S/.test(d.training.brands.outdoor[k])));
+const osys = await ask('ask_ai', 'Plan a reel for a new hoodie concept');
+check('outdoor request: philosophy, faith, audience and tone reach the AI', /Individuality/.test(osys) && /Psalm 148/.test(osys) && /understated/.test(osys) && /mountain bikers/.test(osys));
+check('outdoor request: visual identity (palette, avoids) reaches the AI', /sage and muted greens/i.test(osys) && /neon yellow/i.test(osys) && /faceless compositions/.test(osys) && /vintage NON MAJORITY logo/.test(osys));
+check('outdoor request: product-claims and honesty rules reach the AI as CRITICAL', /\[CRITICAL\] Never claim a product is waterproof/.test(osys) && /\[CRITICAL\] Never invent product releases/.test(osys) && /\[CRITICAL\] Never generate or suggest AI-generated people/.test(osys));
+const psys = await ask('content_plan', 'Plan next week of reels');
+check('outdoor content request: the four pillars reach the AI', /\[CONTENT PILLARS/.test(psys) && /- Outdoors:/.test(psys) && /- Build:/.test(psys) && /- Philosophy:/.test(psys) && /- The Few:/.test(psys));
+check('outdoor request: the content-spec rule reaches the AI', /content pillar \(Outdoors, Build, Philosophy or The Few\), the hook, the visual concept/.test(osys));
+check('outdoor request: development stage and product-development checklist reach the AI', /concept, mockup, prototype, completed product or product available for purchase/.test(osys) && /what must be validated before making claims/.test(osys));
+await page.click('.nm-brandbar button:has-text("NONMAJORITY DIGITAL")'); await page.waitForTimeout(300);
+const dsys = (await ask('ask_ai', 'Plan a reel about a CRM follow-up automation')) + (await ask('content_plan', 'Plan next week of reels about CRM automation'));
+check('digital request: none of the NON MAJORITY brand material leaks in', !/sage and muted greens/i.test(dsys) && !/Never claim a product is waterproof/.test(dsys) && !/- The Few:/.test(dsys) && !/Psalm 148/.test(dsys) && !/neon yellow/i.test(dsys) && !/- Outdoors:/.test(dsys));
+check('digital request: the agency material is still there', /B2B digital growth agency/.test(dsys) && /guaranteed rankings/.test(dsys));
+await page.click('.nm-brandbar button:has-text("Auto")'); await page.waitForTimeout(300);
+const asys = (await ask('ask_ai', 'What should I work on today?')) + (await ask('content_plan', 'What should I work on today?'));
+check('no brand selected: brand-specific pillars and rules are left out', !/- The Few:/.test(asys) && !/Never claim a product is waterproof/.test(asys));
 
 /* Auto mode infers the brand from the wording */
 await page.click('.nm-brandbar button:has-text("Auto")'); await page.waitForTimeout(300);
@@ -88,7 +109,7 @@ check('Auto: outdoor wording selects NON MAJORITY', /ACTIVE BRAND: NON MAJORITY/
 sys = await ask('ask_ai', 'Draft SEO fixes and a CRM automation pitch for a dentist website');
 check('Auto: agency wording selects NONMAJORITY DIGITAL', /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(sys));
 sys = await ask('ask_ai', 'What should I work on today?');
-check('Auto: ambiguous wording assumes no brand and never pulls in the outdoor brand', /No brand is selected/.test(sys) && !/ACTIVE BRAND: /.test(sys) && !/City > Trail > Summit/.test(sys) && !/authentic to people who actually do outdoor sports/.test(sys));
+check('Auto: ambiguous wording assumes no brand and never pulls in the outdoor brand', /No brand is selected/.test(sys) && !/ACTIVE BRAND: /.test(sys) && !/CITY → TRAIL → SUMMIT/.test(sys) && !/authentic to people who actually do outdoor sports/.test(sys));
 
 /* examples: approval, brand scoping, task relevance */
 await goto('aitraining', 'examples');
@@ -122,7 +143,7 @@ await page.click('.nm-brandbar button:has-text("NONMAJORITY DIGITAL")').catch(()
 await page.evaluate(() => { LDOS.space().nm.training.activeBrand = 'digital'; LD.save(); });
 sent = []; await clickNm('tool', 'hook'); await page.waitForTimeout(700);
 const toolSys = (sent[0] && sent[0].system) || '';
-check('Content Studio script tool sends the training context for the selected brand', /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(toolSys) && /AI TRAINING CONTEXT \(retrieved for this task: script\)/.test(toolSys) && !/City > Trail > Summit/.test(toolSys), toolSys.slice(0, 200));
+check('Content Studio script tool sends the training context for the selected brand', /ACTIVE BRAND: NONMAJORITY DIGITAL/.test(toolSys) && /AI TRAINING CONTEXT \(retrieved for this task: script\)/.test(toolSys) && !/CITY → TRAIL → SUMMIT/.test(toolSys), toolSys.slice(0, 200));
 
 /* quality checks */
 await page.evaluate(() => { const n = LDOS.space().nm; n.examples.push({ id: 'ex_mix', kind: 'good_caption', title: 'Mixed one', text: 'Our new snowboard hoodie for the trail and the summit', brand: 'digital', approved: true, created: new Date().toISOString() }, { id: 'ex_dupA', kind: 'sales_messaging', title: 'Dup A', text: 'Fix the slow website and the broken lead form this month.', brand: 'digital', approved: true, created: new Date().toISOString() }, { id: 'ex_dupB', kind: 'sales_messaging', title: 'Dup B', text: 'Fix the slow website and the broken lead form this month.', brand: 'digital', approved: true, created: new Date().toISOString() }); n.training.groups.push({ id: 'gr_short', name: 'Short', text: 'Be nice.', brand: 'all', enabled: true }); n.training.brands.outdoor.reviewed = '2024-01-01'; LD.save(); });
