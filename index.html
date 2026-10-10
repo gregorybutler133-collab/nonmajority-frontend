@@ -15180,8 +15180,16 @@ var OPT_CATS=['CONTENT','SALES','MARKETING','BUSINESS','CUSTOMER EXPERIENCE','EF
 var OPT_STATUS=[['active','Active'],['gathering','Gathering Data'],['successful','Successful'],['needs_review','Needs Review'],['paused','Paused']];
 var GOAL_KINDS=[['business','Business goals'],['marketing','Marketing goals'],['sales','Sales goals'],['content','Content goals'],
   ['campaign','Current campaigns'],['short','Short-term objectives'],['long','Long-term objectives']];
-var EX_KINDS=[['good_script','Good script'],['bad_script','Bad script'],['good_caption','Good caption'],['bad_caption','Bad caption'],
-  ['good_outreach','Good outreach'],['brand_messaging','Brand messaging'],['website_copy','Website copy'],['sales_messaging','Sales messaging']];
+var EX_KINDS=[['good_script','Good script'],['bad_script','Bad script'],['good_hook','High-performing hook'],['good_caption','Good caption'],['bad_caption','Bad caption'],
+  ['good_outreach','Good outreach'],['brand_messaging','Brand messaging'],['website_copy','Website copy'],['good_cta','Call to action'],['sales_messaging','Sales messaging'],
+  ['sales_conversation','Sales conversation'],['follow_up','Follow-up message'],['objection_handling','Objection handling'],['seo_recommendation','SEO recommendation'],
+  ['crm_explanation','CRM / automation explanation'],['brand_content','Brand-specific content']];
+/* two connected but separate brands — every rule, example and instruction can be scoped to one */
+var BRANDS=[['digital','NONMAJORITY DIGITAL'],['outdoor','NON MAJORITY']];
+var BRAND_SCOPE=[['all','Both brands']].concat(BRANDS);
+var BRAND_FIELDS=[['industry','Industry',1],['description','Business description',1],['products','Products',1],['services','Services',1],['targetMarket','Target market',1],
+  ['positioning','Positioning & philosophy',1],['voice','Brand voice',1],['contentRules','Content rules',1],['salesRules','Sales & outreach rules',1],['avoid','Never do',1]];
+function blankBrand(){ var b={reviewed:''}; BRAND_FIELDS.forEach(function(f){ b[f[0]]=''; }); return b; }
 var VOICES=['Professional','Casual','Direct','Educational','Funny','Bold','Storytelling','Technical','Inspirational','Conversational'];
 
 function labelOf(list,k){ for(var i=0;i<list.length;i++) if(list[i][0]===k) return list[i][1]; return k||''; }
@@ -15198,6 +15206,8 @@ function blankTraining(){
     goals:[],
     pillars:[],
     groups:[],
+    brands:{digital:blankBrand(),outdoor:blankBrand()},
+    activeBrand:'',
     updated:''
   };
 }
@@ -15209,6 +15219,7 @@ function nmOf(space){
   });
   if(!n.training||typeof n.training!=='object') n.training=blankTraining();
   fill(n.training,blankTraining());
+  n.examples.forEach(function(e){ if(e&&e.approved==null) e.approved=true; if(e&&!e.brand) e.brand='all'; });
   if(!n.flags) n.flags={};
   fill(n.flags,{dismissedInsights:{},savedInsights:{},lastPost:null,lastFilm:null,lastPatterns:null,expCounter:0,lastRecBuild:''});
   if(!Array.isArray(space.content)) space.content=[];
@@ -15679,17 +15690,58 @@ PARTS.personal=function(){
     kv('Personality',a.personality),kv('Interests',a.interests),kv('Values',a.values),kv('Communication preferences',a.communication),kv('Notes',a.notes));
   out=trim(out,1300); return {label:'About you',lines:out,n:out.length,tag:'user-provided'};
 };
-PARTS.business=function(){
-  var out=[];
+/* ---------- brand awareness: which of the two brands a task is for ---------- */
+var BRAND_TERMS={
+  digital:/\b(websites?|seo|crm|automations?|leads?|agency|landing pages?|workflows?|b2b|google search|receptionist|follow-?ups?)\b/gi,
+  outdoor:/\b(snowboard\w*|skiing|mountain bik\w*|climbing|hiking|trails?|summit|hoodies?|apparel|streetwear|outdoor gear|jackets?|backpacks?|mountaineering)\b/gi
+};
+function termCount(re,txt){ var m=str(txt).match(re); return m?m.length:0; }
+function brandOf(item){ var b=item&&item.brand; return (b==='digital'||b==='outdoor')?b:'all'; }
+/* with no brand chosen only shared ("both brands") items apply — brand-specific ones never leak in */
+function brandMatch(item,br){ var b=brandOf(item); return b==='all'||(!!br&&b===br); }
+function brandLabel(b){ return labelOf(BRANDS,b); }
+function inferBrand(q){
+  var d=termCount(BRAND_TERMS.digital,q), o=termCount(BRAND_TERMS.outdoor,q);
+  return d>o?'digital':o>d?'outdoor':'';
+}
+function brandConfigured(b){ var p=T().brands&&T().brands[b]; return !!p&&BRAND_FIELDS.some(function(f){ return has(p[f[0]]); }); }
+function anyBrandConfigured(){ return brandConfigured('digital')||brandConfigured('outdoor'); }
+/* the selected brand wins; "Auto" infers it from the wording of the request; otherwise no brand is assumed */
+function resolveBrand(opts){
+  if(opts&&opts.brand) return opts.brand;
+  var a=T().activeBrand;
+  if(a==='digital'||a==='outdoor') return a;
+  return anyBrandConfigured()?inferBrand(opts&&opts.query):'';
+}
+PARTS.brandprofile=function(opts){
+  var br=resolveBrand(opts), out=[];
+  if(!anyBrandConfigured()) return {label:'Brand profile',lines:[],n:0,tag:'user-provided'};
+  if(!br){
+    out.push('- No brand is selected for this task. Do not assume which brand the request is for and do not blend the two brands. If it changes the result, ask which brand.');
+    return {label:'Brand profile',lines:out,n:1,tag:'user-provided'};
+  }
+  var other=br==='digital'?'outdoor':'digital', p=T().brands[br];
+  out.push('- ACTIVE BRAND: '+brandLabel(br)+'. Write only for this brand. Do not use '+brandLabel(other)+' positioning, offers, audience, examples or sales messaging unless the user explicitly asks for a crossover.');
+  BRAND_FIELDS.forEach(function(f){ out.push(kv(f[1],p[f[0]])); });
+  out=trim(out,3600); return {label:'Brand profile',lines:out,n:out.length,tag:'user-provided, '+brandLabel(br)};
+};
+PARTS.business=function(opts){
+  var out=[], br=resolveBrand(opts);
+  if(br==='outdoor'){
+    out.push('- Workspace-level business facts describe the other brand and are omitted. Use the BRAND PROFILE for this brand.');
+    T().business.custom.forEach(function(c){ if(brandOf(c)==='outdoor'&&has(c.label)&&has(c.value)) out.push('- '+c.label+': '+oneLine(c.value)); });
+    out=trim(out,1500); return {label:'Business',lines:out,n:out.length,tag:'user-provided'};
+  }
   [['name','Business'],['industry','Industry'],['description','Description'],['products','Products'],['services','Services'],
    ['targetMarket','Target market'],['location','Location'],['model','Business model'],['businessGoals','Business goals'],
    ['priorities','Current priorities'],['competitors','Competitors'],['usp','Unique selling points'],
    ['problems','Common customer problems'],['objections','Common objections']].forEach(function(f){ out.push(kv(f[1],bizGet(f[0]))); });
-  T().business.custom.forEach(function(c){ if(has(c.label)&&has(c.value)) out.push('- '+c.label+': '+oneLine(c.value)); });
+  T().business.custom.forEach(function(c){ if(brandMatch(c,br)&&has(c.label)&&has(c.value)) out.push('- '+c.label+': '+oneLine(c.value)); });
   out=trim(out,2300); return {label:'Business',lines:out,n:out.length,tag:'user-provided'};
 };
-PARTS.audience=function(){
+PARTS.audience=function(opts){
   var a=T().audience, out=[];
+  if(resolveBrand(opts)==='outdoor'){ out.push('- The workspace audience fields describe the other brand. Use the Target market in the BRAND PROFILE.'); return {label:'Audience',lines:out,n:1,tag:'user-provided'}; }
   [['idealCustomer','Ideal customer'],['ageRange','Age range'],['location','Location'],['interests','Interests'],['problems','Problems'],
    ['desires','Desires'],['motivations','Buying motivations'],['objections','Objections'],['painPoints','Pain points'],
    ['language','Language they use'],['cares','What they care about'],['dislikes','What they dislike']].forEach(function(f){ out.push(kv(f[1],a[f[0]])); });
@@ -15701,18 +15753,43 @@ PARTS.brand=function(opts){
   out.push(kv('In their own words',v.custom),kv('Sound like',v.soundLike),kv('Never sound like',v.neverSound),
     kv('Words they like',v.wordsLike),kv('Words they avoid',v.wordsAvoid),kv('Expressions they use',v.exprUse),
     kv("Expressions they don't use",v.exprAvoid),kv('Formatting',v.formatting));
-  var kinds=(opts&&opts.exampleKinds)||['good_script','good_caption','brand_messaging'];
-  var good=S().examples.filter(function(e){ return kinds.indexOf(e.kind)>-1&&has(e.text); }).slice(0,2);
-  good.forEach(function(e){ out.push('- ON-BRAND EXAMPLE ('+labelOf(EX_KINDS,e.kind)+'): '+clip(oneLine(e.text),450)); });
-  var bad=S().examples.filter(function(e){ return /^bad_/.test(e.kind)&&has(e.text); }).slice(0,1);
-  bad.forEach(function(e){ out.push('- OFF-BRAND EXAMPLE (do NOT write like this): '+clip(oneLine(e.text),300)); });
-  out=trim(out,2400); return {label:'Brand voice',lines:out,n:out.length,tag:'user-provided'};
+  out=trim(out,2000); return {label:'Brand voice',lines:out,n:out.length,tag:'user-provided'};
 };
-PARTS.rules=function(){
-  var out=[];
-  enabledInstructions().forEach(function(i){ out.push('- ['+(i.priority||'PREFERENCE')+'] '+oneLine(i.text)); });
-  T().groups.forEach(function(g){ if(g.enabled!==false&&has(g.text)) out.push('- [CUSTOM INSTRUCTIONS'+(g.name?' — '+g.name:'')+'] '+clip(oneLine(g.text),900)); });
-  out=trim(out,2400); return {label:'Content rules',lines:out,n:out.length,tag:'user-provided'};
+/* approved examples, retrieved by task type, brand and similarity to the request — never a dump */
+var KIND_AFFINITY={
+  script:{good_script:3,good_hook:3,brand_content:2,good_caption:1,good_cta:1},
+  film:{good_script:2,brand_content:2,good_hook:1},
+  content:{good_script:2,good_hook:2,good_caption:2,brand_content:2,good_cta:1},
+  recommend:{good_script:1,good_hook:1,brand_content:2,good_caption:1},
+  sales:{good_outreach:3,sales_messaging:3,sales_conversation:3,follow_up:3,objection_handling:3,good_cta:2,seo_recommendation:1,crm_explanation:1},
+  general:{brand_messaging:2,brand_content:1,website_copy:1,crm_explanation:1,seo_recommendation:1}
+};
+var BAD_FOR={script:'bad_script',film:'bad_script',content:'bad_',recommend:'bad_',sales:'bad_',general:'bad_'};
+function stemmed(t){ return tokens(t).map(function(w){ return w.length>4?w.replace(/(ing|ed|es|s)$/,''):w; }); }
+function exampleSet(profile,opts){
+  opts=opts||{};
+  var br=resolveBrand(opts), q=stemmed(opts.query||''), aff=KIND_AFFINITY[profile]||{};
+  if(opts.exampleKinds){ aff={}; opts.exampleKinds.forEach(function(k){ aff[k]=3; }); }
+  var pool=S().examples.filter(function(e){ return e.approved!==false&&has(e.text)&&brandMatch(e,br); });
+  var good=pool.filter(function(e){ return !/^bad_/.test(e.kind); }).map(function(e){
+    var ov=overlap(q,stemmed((e.title||'')+' '+e.text)), a=aff[e.kind]||0;
+    return {e:e,s:a+3*ov+(brandOf(e)===br&&br?0.5:0),keep:a>0||ov>=0.15};
+  }).filter(function(x){ return x.keep; }).sort(function(a,b){ return b.s-a.s||(b.e.created>a.e.created?1:-1); }).slice(0,3).map(function(x){ return x.e; });
+  var bp=BAD_FOR[profile]||'bad_';
+  var bad=pool.filter(function(e){ return /^bad_/.test(e.kind)&&(bp==='bad_'||e.kind===bp); }).slice(0,1);
+  return {good:good,bad:bad};
+}
+PARTS.examples=function(opts){
+  var ex=exampleSet(opts._profile||'general',opts), out=[];
+  ex.good.forEach(function(e){ out.push('- APPROVED EXAMPLE ('+labelOf(EX_KINDS,e.kind)+(brandOf(e)!=='all'?', '+brandLabel(brandOf(e)):'')+'): '+clip(oneLine(e.text),450)); });
+  ex.bad.forEach(function(e){ out.push('- OFF-BRAND EXAMPLE (do NOT write like this): '+clip(oneLine(e.text),300)); });
+  out=trim(out,2000); return {label:'Approved examples',lines:out,n:out.length,tag:'approved by the user; copy the structure and tone, never the wording'};
+};
+PARTS.rules=function(opts){
+  var out=[], br=resolveBrand(opts);
+  enabledInstructions().filter(function(i){ return brandMatch(i,br); }).forEach(function(i){ out.push('- ['+(i.priority||'PREFERENCE')+'] '+oneLine(i.text)); });
+  T().groups.forEach(function(g){ if(g.enabled!==false&&has(g.text)&&brandMatch(g,br)) out.push('- [CUSTOM INSTRUCTIONS'+(g.name?' — '+g.name:'')+'] '+clip(oneLine(g.text),900)); });
+  out=trim(out,3400); return {label:'Content rules',lines:out,n:out.length,tag:'user-provided'};
 };
 PARTS.pillars=function(){
   var out=[];
@@ -15726,18 +15803,18 @@ PARTS.goals=function(){
   });
   out=trim(out,1000); return {label:'Goals',lines:out,n:out.length,tag:'user-provided'};
 };
-PARTS.sales=function(){
+PARTS.sales=function(opts){
   var out=[];
+  if(resolveBrand(opts)==='outdoor'){ out.push('- Agency pricing, objections and offers do not apply to this brand. Use the sales & outreach rules in the BRAND PROFILE.'); return {label:'Sales knowledge',lines:out,n:1,tag:'user-provided'}; }
   out.push(kv('Pricing',bizGet('pricing')),kv('Objections',bizGet('objections')||T().audience.objections),
     kv('Customer problems',bizGet('problems')),kv('Unique selling points',bizGet('usp')));
-  S().examples.filter(function(e){ return (e.kind==='sales_messaging'||e.kind==='good_outreach')&&has(e.text); }).slice(0,2)
-    .forEach(function(e){ out.push('- ON-BRAND SALES EXAMPLE: '+clip(oneLine(e.text),400)); });
   out=trim(out,1500); return {label:'Sales knowledge',lines:out,n:out.length,tag:'user-provided'};
 };
 PARTS.learnings=function(opts){
   var cats=(opts&&opts.learnCats)||['voice','audience','content','business','other'];
   var q=tokens((opts&&opts.query)||'');
-  var list=approvedLearnings().filter(function(l){ return cats.indexOf(l.category||'other')>-1; });
+  var br=resolveBrand(opts);
+  var list=approvedLearnings().filter(function(l){ return cats.indexOf(l.category||'other')>-1&&brandMatch(l,br); });
   list=list.map(function(l){ return {l:l,s:overlap(q,tokens(l.text))+(l.origin==='user'?0.05:0)}; })
            .sort(function(a,b){ return b.s-a.s||(b.l.created>a.l.created?1:-1); }).slice(0,12).map(function(x){ return x.l; });
   var out=list.map(function(l){
@@ -15780,21 +15857,23 @@ PARTS.optimizations=function(opts){
 };
 
 var PROFILES={
-  script:['business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations'],
-  recommend:['personal','business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations'],
-  content:['business','audience','brand','rules','pillars','goals','learnings','performance','optimizations'],
-  sales:['business','audience','brand','sales','rules','goals','learnings'],
-  general:['personal','business','rules','goals','learnings','optimizations'],
+  script:['brandprofile','business','audience','brand','examples','rules','pillars','goals','learnings','past','performance','optimizations'],
+  recommend:['brandprofile','personal','business','audience','brand','examples','rules','pillars','goals','learnings','past','performance','optimizations'],
+  content:['brandprofile','business','audience','brand','examples','rules','pillars','goals','learnings','performance','optimizations'],
+  sales:['brandprofile','business','audience','brand','sales','examples','rules','goals','learnings'],
+  general:['brandprofile','personal','business','examples','rules','goals','learnings','optimizations'],
   learn:['brand','rules'],
-  film:['business','audience','brand','rules','pillars','goals','learnings','past','performance','optimizations']
+  film:['brandprofile','business','audience','brand','examples','rules','pillars','goals','learnings','past','performance','optimizations']
 };
-var PART_KEY_LABEL={personal:'About you',business:'Business',audience:'Audience',brand:'Brand voice',rules:'Content rules',
+var PART_KEY_LABEL={brandprofile:'Brand profile',examples:'Approved examples',personal:'About you',business:'Business',audience:'Audience',brand:'Brand voice',rules:'Content rules',
   pillars:'Content pillars',goals:'Goals',sales:'Sales knowledge',learnings:'Approved learnings',past:'Past scripts',
   performance:'Performance data',optimizations:'Current optimizations'};
 var HIERARCHY=
 'PRIORITY ORDER when sources disagree (highest first): 1) explicit user instructions 2) approved business information 3) approved brand rules '+
 '4) approved AI learnings 5) verified performance data 6) current goals 7) AI-generated recommendations 8) general AI knowledge. '+
-'Among instructions: CRITICAL beats IMPORTANT beats PREFERENCE beats OPTIONAL. A guess or inferred preference never outranks an explicit instruction.';
+'Among instructions: CRITICAL beats IMPORTANT beats PREFERENCE beats OPTIONAL. A guess or inferred preference never outranks an explicit instruction. '+
+'APPROVED EXAMPLES teach structure, tone and approach — never copy their wording, and a newer explicit instruction always beats an example. '+
+'The two brands (NONMAJORITY DIGITAL and NON MAJORITY) stay separate: use only the ACTIVE BRAND\'s material unless the user explicitly asks for a crossover.';
 var RULES=
 'AI RULES (non-negotiable):\n'+
 '1. Never fabricate business information, metrics, analytics, or results. If something is not in the context, say it is missing.\n'+
@@ -15806,6 +15885,7 @@ var RULES=
 function ctxFor(profile,opts){
   opts=opts||{};
   var keys=PROFILES[profile]||PROFILES.general;
+  opts=Object.assign({},opts,{_profile:profile});
   var parts=[], used=[], txt=['=== AI TRAINING CONTEXT (retrieved for this task: '+profile+') ===',HIERARCHY];
   keys.forEach(function(k){
     var p=PARTS[k](opts);
@@ -15818,7 +15898,7 @@ function ctxFor(profile,opts){
     }
   });
   txt.push('=== END CONTEXT ===');
-  return {text:txt.join('\n'),used:used,profile:profile};
+  return {text:txt.join('\n'),used:used,profile:profile,brand:resolveBrand(opts)};
 }
 
 /* one place every generation goes through */
@@ -15847,7 +15927,7 @@ var lastLegacyCtx=null;
       if(prof&&!o._nmSkip){
         var q='';
         var msgs=o.messages||[]; for(var i=msgs.length-1;i>=0;i--){ if(msgs[i].role==='user'&&typeof msgs[i].content==='string'){ q=msgs[i].content; break; } }
-        var c=ctxFor(prof,{query:q});
+        var c=ctxFor(prof,{query:q,brand:/^outreach_/.test(f||'')?'digital':undefined});
         lastLegacyCtx=c;
         o=Object.assign({},o,{system:(o.system||'')+'\n\n'+c.text+'\n\n'+RULES});
       }
@@ -16045,6 +16125,9 @@ function healthCategories(){
       desires:'what they want',motivations:'what motivates them to buy',objections:'their objections',painPoints:'their pain points',language:'the words they use',cares:'what they care about',dislikes:'what they dislike'};
     return 'Tell the AI '+(w[m[0]]||m[0])+'.';
   });
+  cat('brands','Brand Profiles','training.brands',BRANDS.map(function(b){ var p=t.brands[b[0]]; return [b[0],BRAND_FIELDS.filter(function(f){ return has(p[f[0]]); }).length>=8]; }),function(m){
+    return 'Complete the '+brandLabel(m[0])+' profile on the Brands page (at least 8 of 10 fields).';
+  });
   var postedWithPerf=n.scripts.filter(function(s){ return s.status==='posted'&&scriptPerf(s.id).length; }).length;
   cat('content','Content Knowledge','training.rules',[
     ['pillars',t.pillars.filter(function(p){ return has(p.name); }).length>=3],
@@ -16086,7 +16169,7 @@ function healthCategories(){
   });
   return out;
 }
-var HEALTH_ORDER=['business','voice','audience','examples','instructions','goals','sales','content'];
+var HEALTH_ORDER=['brands','business','voice','audience','examples','instructions','goals','sales','content'];
 function nextBestTraining(){
   var cats=healthCategories().filter(function(c){ return c.ratio<1; });
   if(!cats.length) return null;
@@ -17188,6 +17271,7 @@ var STARTER_CUSTOM='When writing content for me: lead with a strong hook, keep s
 
 var TRAIN_PAGES={
   about:{title:'About Me',desc:'Who you are. This helps the AI write and advise in a way that fits you.',cat:null},
+  brands:{title:'Brands',desc:'One profile per brand so the AI never blends NONMAJORITY DIGITAL with NON MAJORITY. Pick which brand the AI is writing for below.',cat:'brands'},
   business:{title:'Business Knowledge',desc:'The facts about your business. These fields are shared with AI Memory, so both places always agree.',cat:'business'},
   audience:{title:'Audience',desc:'Who you are talking to. The more specific this is, the more targeted every hook and script becomes.',cat:'audience'},
   voice:{title:'Brand Voice',desc:'How you sound — and how you never want to sound.',cat:'voice'},
@@ -17201,8 +17285,15 @@ function trainHead(key){
   var h='<div class="nm-trhead"><div><p class="hint" style="margin:0 0 6px">'+esc(p.desc)+'</p>'+
     '<div class="nm-row">'+(hc?pill(hc.status,hc.status==='Strong'||hc.status==='Good'?'good':hc.status==='Not Configured'?'flat':'med')+'<span class="hint" style="margin:0">'+hc.done+' of '+hc.total+' filled</span>':'')+
     '<span id="nmSaveState" class="hint nm-savestate" role="status" style="margin:0">Autosaves as you type</span></div></div>'+
-    '<div class="nm-row">'+badge('user')+B('Reset this section','resetAsk',key,null,'ghost danger')+'</div></div>';
+    '<div class="nm-row">'+badge('user')+B('Reset this section','resetAsk',key,null,'ghost danger')+'</div></div>'+brandBar();
   return h;
+}
+function brandBar(){
+  var cur=T().activeBrand||'';
+  return '<div class="nm-brandbar nm-row" role="group" aria-label="Brand the AI is writing for" style="margin:10px 0"><span class="hint" style="margin:0">AI is writing for:</span>'+
+    [['','Auto (from the request)']].concat(BRANDS).map(function(b){
+      return '<button class="chip'+(cur===b[0]?' on':'')+'" aria-pressed="'+(cur===b[0])+'" '+A('brandSet',b[0])+'>'+esc(b[1])+'</button>';
+    }).join('')+'</div>';
 }
 function tfield(path,label,val,ta){
   var v=esc(val==null?'':val);
@@ -17218,6 +17309,8 @@ function pgTrain(key){
   if(key==='about'){
     if(!has(t.about.name)&&has((DB.settings.me||{}).name)) t.about.name=DB.settings.me.name;
     h=formPage('about','about',F_ABOUT,function(k){ return t.about[k]; });
+  } else if(key==='brands'){
+    h=brandsPage();
   } else if(key==='business'){
     h=formPage('business','business',F_BIZ,bizGet);
     h+=sect('Additional knowledge',B('+ Add entry','bizAdd',null,null,'pri'),t.business.custom.length)+
@@ -17226,6 +17319,7 @@ function pgTrain(key){
     else h+=t.business.custom.map(function(c){
       return '<div class="card nm-cust"><label class="field"><span>Label</span><input data-nmf="bizc.'+c.id+'.label" value="'+esc(c.label)+'"></label>'+
         '<label class="field"><span>Details</span><textarea data-nmf="bizc.'+c.id+'.value" rows="3">'+esc(c.value)+'</textarea></label>'+
+        selectHTML('bcb_'+c.id,'Applies to',BRAND_SCOPE,brandOf(c),{attr:'data-nmf="bizc.'+c.id+'.brand"'})+
         '<div class="nm-row">'+B('Remove','bizDel',c.id,null,'danger ghost')+'</div></div>';
     }).join('');
   } else if(key==='audience'){
@@ -17244,7 +17338,7 @@ function rulesPage(){
   var n=S(), h=trainHead('rules');
   h+='<div class="card"><p class="nm-lbl">Add a rule</p>'+
     '<label class="field"><span>Rule</span><textarea id="ruleText" rows="2" placeholder="e.g. Never sound like an advertisement."></textarea></label>'+
-    selectHTML('rulePri','Priority',PRIORITIES,'IMPORTANT')+
+    selectHTML('rulePri','Priority',PRIORITIES,'IMPORTANT')+selectHTML('ruleBrand','Applies to',BRAND_SCOPE,T().activeBrand||'all')+
     '<div class="nm-row">'+B('Add rule','ruleAdd',null,null,'pri')+'</div>'+
     '<p class="hint">CRITICAL rules can never be broken. When two rules conflict, the higher priority wins: CRITICAL, IMPORTANT, PREFERENCE, OPTIONAL.</p>'+
     '<p class="nm-lbl" style="margin-top:14px">Suggestions <span class="hint">tap to add</span></p><div class="chips nm-chips">'+
@@ -17254,6 +17348,7 @@ function rulesPage(){
   else h+=sortBy(n.instructions,function(i){ return (PRI_RANK[i.priority]==null?9:PRI_RANK[i.priority])+'|'+(i.created||''); }).map(function(i){
     return '<div class="card nm-rule'+(i.enabled===false?' off':'')+'"><label class="field"><span>Rule</span><textarea data-nmf="rule.'+i.id+'.text" rows="2">'+esc(i.text)+'</textarea></label>'+
       '<div class="nm-row">'+selectHTML('rp_'+i.id,'Priority',PRIORITIES,i.priority,{attr:'data-nmf="rule.'+i.id+'.priority"'})+
+      selectHTML('rb_'+i.id,'Applies to',BRAND_SCOPE,brandOf(i),{attr:'data-nmf="rule.'+i.id+'.brand"'})+
       B(i.enabled===false?'Enable':'Disable','ruleToggle',i.id)+B('Delete','ruleDel',i.id,null,'danger ghost')+
       (i.enabled===false?pill('DISABLED','flat'):pill(i.priority,i.priority==='CRITICAL'?'hot':i.priority==='IMPORTANT'?'high':'flat'))+'</div></div>';
   }).join('');
@@ -17286,19 +17381,23 @@ function goalsPage(){
 function examplesPage(){
   var n=S(), h=trainHead('examples');
   h+='<div class="card"><p class="nm-lbl">Add an example</p>'+selectHTML('exKind','What kind of example',EX_KINDS,'good_script')+
+    selectHTML('exBrand','Which brand is it for?',BRAND_SCOPE,T().activeBrand||'all')+
     fld('exTitle','Title (optional)','',{ph:'e.g. My best-performing reel'})+
     '<label class="field"><span>Paste the example</span><textarea id="exText" rows="6" placeholder="Paste a script, caption, message or page copy"></textarea></label>'+
+    '<label class="nm-row" style="margin:8px 0"><input type="checkbox" id="exApproved" checked> <span>Approved — the AI may use this as a reference</span></label>'+
     '<div class="nm-row">'+B('Save example','exAdd',null,null,'pri')+'</div>'+
-    '<p class="hint">Bad examples are just as useful — mark them so the AI knows what to avoid.</p></div>';
+    '<p class="hint">Only approved examples are used, and only for the matching brand and task. The AI copies structure and tone, never the exact wording. Bad examples are just as useful — mark them so the AI knows what to avoid.</p></div>';
   h+=sect('Your examples',null,n.examples.length);
   if(!n.examples.length) return h+'<div class="empty nm-empty"><b>No examples yet</b>Add three or four pieces you are proud of. The AI matches your voice from them.</div>';
   h+=n.examples.map(function(e){
     var lc=n.learnings.filter(function(l){ return l.source&&l.source.ref===e.id; }).length;
-    return '<div class="card nm-ex"><div class="nm-row" style="justify-content:space-between">'+pill(labelOf(EX_KINDS,e.kind),/^bad_/.test(e.kind)?'bad':'good')+
+    return '<div class="card nm-ex'+(e.approved===false?' off':'')+'"><div class="nm-row" style="justify-content:space-between"><div class="nm-row">'+pill(labelOf(EX_KINDS,e.kind),/^bad_/.test(e.kind)?'bad':'good')+
+      pill(brandOf(e)==='all'?'BOTH BRANDS':brandLabel(brandOf(e)),'flat')+(e.approved===false?pill('NOT APPROVED — NOT USED','high'):pill('APPROVED','good'))+'</div>'+
       '<span class="hint" style="margin:0">'+esc(L.fmtDate(e.created))+(lc?' · '+plural(lc,'learning')+' approved':'')+'</span></div>'+
       '<h3 class="nm-title">'+esc(e.title||labelOf(EX_KINDS,e.kind))+'</h3>'+
       '<details><summary class="hint" style="cursor:pointer">'+esc(clip(e.text.replace(/\s+/g,' '),110))+'</summary><pre class="plain">'+esc(e.text)+'</pre></details>'+
-      '<div class="nm-row" style="margin-top:10px">'+B('Teach AI from this','teach',e.id,null,'pri')+B('Delete','exDel',e.id,null,'danger ghost')+'</div></div>';
+      selectHTML('eb_'+e.id,'Brand',BRAND_SCOPE,brandOf(e),{attr:'data-nmf="ex.'+e.id+'.brand"'})+
+      '<div class="nm-row" style="margin-top:10px">'+B(e.approved===false?'Approve':'Unapprove','exApprove',e.id,null,e.approved===false?'pri':'')+B('Teach AI from this','teach',e.id)+B('Delete','exDel',e.id,null,'danger ghost')+'</div></div>';
   }).join('');
   return h;
 }
@@ -17310,9 +17409,173 @@ function customPage(){
   h+=t.groups.map(function(g){
     return '<div class="card nm-rule'+(g.enabled===false?' off':'')+'"><label class="field"><span>Name</span><input data-nmf="group.'+g.id+'.name" value="'+esc(g.name)+'" placeholder="e.g. Writing style"></label>'+
       '<label class="field"><span>Instructions</span><textarea data-nmf="group.'+g.id+'.text" rows="8" class="nm-script" style="min-height:180px">'+esc(g.text)+'</textarea></label>'+
+      selectHTML('gb_'+g.id,'Applies to',BRAND_SCOPE,brandOf(g),{attr:'data-nmf="group.'+g.id+'.brand"'})+
       '<div class="nm-row">'+B(g.enabled===false?'Enable':'Disable','groupToggle',g.id)+B('Delete','groupDel',g.id,null,'danger ghost')+(g.enabled===false?pill('DISABLED','flat'):pill('ENABLED','good'))+'</div></div>';
   }).join('');
   return h;
+}
+
+
+/* ============================================================
+   BRANDS PAGE + MASTER TRAINING (applied on request, with a backup)
+   ============================================================ */
+var MASTER={
+  brands:{
+    digital:{
+      industry:'B2B digital growth agency specializing in websites, SEO, CRM systems, AI automation, and business growth systems.',
+      description:'NONMAJORITY DIGITAL helps owner-operated businesses build better digital storefronts and operational systems. We connect websites, search visibility, lead capture, CRM, AI, automation, and content into practical systems that help businesses attract opportunities and manage them more effectively.',
+      products:'Custom websites and landing pages. SEO and website optimization. CRM and business operating systems. AI tools and AI receptionists. Workflow automation, lead capture and follow-up systems. Content and marketing assets. Integrations connecting websites, lead forms, CRM and automations.',
+      services:'Websites, SEO / Google search visibility, CRM, AI automation, workflow optimization, sales process optimization, business intelligence, content systems. Never imply every service is included in every package; respect the actual offer, scope, pricing and capabilities configured in the CRM.',
+      targetMarket:'Owner-operated businesses and small-to-medium-sized companies that could benefit from a better website, stronger search visibility, more effective lead capture, improved follow-up, or streamlined operations. Look for specific operational problems instead of assuming every business needs every service.',
+      positioning:'We build intelligent business growth systems, not just isolated websites or AI tools. Philosophy: Don\'t be the majority. Don\'t slave for your business. Build systems that make your business work more efficiently for you. Goal: reduce repetitive work, improve the customer acquisition process, organize operations, and stop losing opportunities because systems are inefficient. Never promise guaranteed rankings, revenue, leads or results.',
+      voice:'Direct and confident. Natural and conversational. Practical and intelligent. Modern and independent. Slightly unconventional. Clear without sounding corporate. Educational without being boring. Persuasive without being pushy. Write like a knowledgeable operator who understands real businesses, not a salesperson reading a script.',
+      contentRules:'Prioritize useful, entertaining, relatable content native to Instagram Reels, TikTok and other short-form platforms. Preferred formats: demonstrations of real business systems, website before-and-after transformations, inefficient workflows vs better alternatives, CRM features in practical situations, AI and automation use cases, SEO problems with specific fixes, business optimization tips, founder-led videos, behind-the-scenes building and testing, short educational breakdowns, relatable business-owner problems, case studies based on verified information. Not every post is an ad: lead with the problem, insight, demonstration or entertaining concept, and mention the service only when it fits naturally.',
+      salesRules:'Outreach: 1) identify a specific, observable business problem, 2) explain why it matters to that business, 3) suggest a practical improvement, 4) connect it to the relevant service, 5) end with a short, natural question or low-pressure next step. Personalize only with verified information. Recommend the smallest appropriate solution; do not pitch every service. Keep messages short enough to read on a phone.',
+      avoid:'Generic AI marketing language, excessive buzzwords, fake urgency and fabricated scarcity, overly polished corporate language, calling everything revolutionary, empty claims about transforming businesses, excessive emojis, long introductions before delivering value, generic hooks such as "Are you ready to take your business to the next level?". Never invent website issues, missing features, poor reviews, revenue or operational problems. No manipulative tactics, fake compliments, fake referrals, or false claims of having personally reviewed something.'
+    },
+    outdoor:{
+      industry:'Premium outdoor clothing and gear brand focused on mountain sports, technical functionality, outdoor culture, and streetwear.',
+      description:'NON MAJORITY creates outdoor-inspired clothing and gear that combines mountain functionality with streetwear aesthetics for people who live between the city and the mountains.',
+      products:'Outdoor clothing. Technical and lifestyle apparel. Mountain-inspired streetwear. Future outdoor gear and accessories.',
+      services:'Products, brand development, outdoor storytelling, product launches and community building.',
+      targetMarket:'People involved in outdoor sports, mountain adventures, snowboarding, mountain biking, climbing, hiking, and functional outdoor fashion.',
+      positioning:'Brand concept: City > Trail > Summit. Inspired by mountain biking, snowboarding and skiing, rock climbing, hiking and future mountaineering, the city-to-trail lifestyle, mountain environments, and faith-inspired values with appreciation for God\'s creation. Should feel authentic to people who actually participate in outdoor sports — not generic motivational merchandise or cheap mass-market fashion.',
+      voice:'Direct, confident and grounded in real outdoor experience. Natural, conversational, modern and independent. Authentic mountain culture over marketing language.',
+      contentRules:'Prioritize authentic outdoor experiences, mountain culture, product functionality, adventure, and the city-to-trail lifestyle.',
+      salesRules:'Product-led and story-led: lead with how the gear performs and where it was used. No fake urgency or fabricated scarcity. Do not use the B2B agency outreach structure.',
+      avoid:'Generic motivational merchandise language, cheap mass-market fashion tone, fake urgency and scarcity, excessive emojis. Never mix in NONMAJORITY DIGITAL (agency) offers, sales messaging or strategy unless a crossover is explicitly requested.'
+    }
+  },
+  voice:{styles:['Direct','Conversational','Bold','Educational'],
+    custom:'Direct and confident, natural and conversational, practical and intelligent, modern and independent, slightly unconventional. Clear without sounding corporate. Persuasive without being pushy.',
+    neverSound:'A salesperson reading a script. Generic AI-generated marketing language. Overly polished corporate copy.',
+    wordsAvoid:'revolutionary, game-changing, transform your business, take your business to the next level, unlock, synergy, cutting-edge',
+    formatting:'Short sentences. Phone-readable. Copy-and-paste-ready when asked. Value first — no long introductions.'},
+  business:{industry:'B2B digital growth agency specializing in websites, SEO, CRM systems, AI automation, and business growth systems.',
+    description:'NONMAJORITY DIGITAL helps owner-operated businesses build better digital storefronts and operational systems. We connect websites, search visibility, lead capture, CRM, AI, automation, and content into practical systems that help businesses attract opportunities and manage them more effectively.'},
+  rules:[
+    ['Never fabricate business information, metrics, reviews, revenue, website issues or results. Distinguish verified facts from assumptions.','CRITICAL','all'],
+    ['Never expose API keys, secrets, authentication tokens or private customer information.','CRITICAL','all'],
+    ['Never claim an action was completed unless it actually succeeded.','CRITICAL','all'],
+    ['Keep NONMAJORITY DIGITAL and NON MAJORITY separate. Never mix their content, sales messaging or strategies unless a crossover is explicitly requested.','CRITICAL','all'],
+    ['No fake urgency, fabricated scarcity, fake compliments, fake referrals, or claims of having personally reviewed something when that did not happen.','IMPORTANT','all'],
+    ['Avoid generic hooks, buzzwords, excessive emojis and long introductions before delivering value.','IMPORTANT','all'],
+    ['Ask a concise clarifying question only when a missing detail materially changes the result. Do not repeat information the user already provided. Deliver copy-and-paste-ready output when requested.','IMPORTANT','all'],
+    ['Explain technical concepts in plain language when asked.','PREFERENCE','all'],
+    ['Do not promise guaranteed rankings, revenue, leads or results.','CRITICAL','digital'],
+    ['Never imply every service is included in every package. Respect the actual offer, scope, pricing and capabilities configured in the CRM.','IMPORTANT','digital'],
+    ['Outreach: name one specific observable problem, say why it matters, suggest a practical improvement, connect it to the relevant service, end with a short low-pressure question. Use verified information only and recommend the smallest appropriate solution.','IMPORTANT','digital'],
+    ['Content: lead with the problem, insight or demonstration, and mention the service only when it fits naturally. Not every post is an advertisement.','IMPORTANT','digital'],
+    ['Content must feel authentic to people who actually do outdoor sports: real experiences, mountain culture, product functionality and the City > Trail > Summit lifestyle.','IMPORTANT','outdoor']
+  ],
+  groups:[{name:'Master AI behavior',brand:'all',
+    text:'Follow the user\'s current request and the selected brand. Use saved business information as context, not as text that must appear in every response. Make recommendations specific to the business problem, and distinguish verified facts from assumptions. Use approved examples as references for structure, tone and approach, not as text to copy. If an example contradicts a more recent explicit instruction, follow the instruction.'}]
+};
+function norm(sx){ return str(sx).toLowerCase().replace(/\s+/g,' ').trim(); }
+function masterAsk(){
+  L.modal('<h3>Apply the NONMAJORITY master training?</h3><p class="lede">This overwrites the Brands profiles, Brand Voice, and the shared Business fields (industry, description, products, services, target market) with the master text, and adds the master rules and instructions. Your examples, goals, pillars, learnings and your own rules stay. A backup of what is there now is saved first, and you can restore it.</p>'+
+    '<div class="foot"><button class="btn" data-close>Cancel</button><button class="btn pri" '+A('masterDo')+'>Back up and apply</button></div>');
+}
+function masterApply(){
+  var t=T(), n=S(), mem=sp().memory||(sp().memory={});
+  n.flags.trainingBackup={t:nowISO(),training:JSON.parse(JSON.stringify(t)),instructions:JSON.parse(JSON.stringify(n.instructions)),
+    memory:JSON.parse(JSON.stringify({profile:mem.profile||{},knowledge:mem.knowledge||{}}))};
+  BRANDS.forEach(function(b){ t.brands[b[0]]=Object.assign(blankBrand(),MASTER.brands[b[0]],{reviewed:today()}); });
+  Object.keys(MASTER.voice).forEach(function(k){ t.voice[k]=JSON.parse(JSON.stringify(MASTER.voice[k])); });
+  Object.keys(MASTER.business).forEach(function(k){ bizSet(k,MASTER.business[k]); });
+  var have={}; n.instructions.forEach(function(i){ have[norm(i.text)]=1; });
+  n.instructions=n.instructions.filter(function(i){ return i.seed!=='master'; });
+  MASTER.rules.forEach(function(r){
+    n.instructions.push({id:uid('ru'),text:r[0],priority:r[1],brand:r[2],enabled:true,category:'content',origin:'user',seed:'master',created:nowISO(),updated:nowISO()});
+  });
+  t.groups=t.groups.filter(function(g){ return g.seed!=='master'; });
+  MASTER.groups.forEach(function(g){ t.groups.push({id:uid('gr'),name:g.name,text:g.text,brand:g.brand,enabled:true,seed:'master'}); });
+  logEvent('training_updated','Master training applied','Brand profiles, voice, business fields and master rules were set. A backup was saved.','AI Training','brands');
+  touchTraining(); L.save(); L.closeModal(); rerender(); L.toast('Master training applied (backup saved)');
+}
+function masterRestore(){
+  var n=S(), bk=n.flags.trainingBackup; if(!bk){ L.toast('No backup found'); return; }
+  var mem=sp().memory||(sp().memory={});
+  n.training=JSON.parse(JSON.stringify(bk.training)); n.instructions=JSON.parse(JSON.stringify(bk.instructions));
+  mem.profile=Object.assign(mem.profile||{},bk.memory.profile); mem.knowledge=Object.assign(mem.knowledge||{},bk.memory.knowledge);
+  n.flags.trainingBackup=null; nmOf(sp());
+  logEvent('training_updated','Previous training restored','The backup taken before the master training was applied.','AI Training','brands');
+  touchTraining(); L.save(); rerender(); L.toast('Previous training restored');
+}
+function brandsPage(){
+  var t=T(), n=S(), bk=n.flags.trainingBackup, h=trainHead('brands');
+  h+='<div class="card"><p class="nm-lbl">Master training</p><p class="hint" style="margin-top:0">One click fills both brand profiles, the brand voice, the shared business fields and the master rules. Existing text is backed up first.</p>'+
+    '<div class="nm-row">'+B('Apply NONMAJORITY master training','masterAsk',null,null,'pri')+(bk?B('Restore previous training','masterRestore'):'')+
+    (bk?'<span class="hint" style="margin:0">Backup from '+esc(fmtStamp(bk.t))+'</span>':'')+'</div></div>';
+  BRANDS.forEach(function(b){
+    var p=t.brands[b[0]];
+    h+=sect(b[1],pill(brandConfigured(b[0])?(t.activeBrand===b[0]?'ACTIVE':'CONFIGURED'):'EMPTY',brandConfigured(b[0])?'good':'flat'))+'<div class="card">'+
+      BRAND_FIELDS.map(function(f){ return tfield('brand.'+b[0]+'.'+f[0],f[1],p[f[0]],!!f[2]); }).join('')+
+      '<p class="hint">'+(p.reviewed?'Last reviewed '+esc(L.fmtDate(p.reviewed))+'.':'Not reviewed yet.')+' Editing any field updates this date.</p></div>';
+  });
+  return h;
+}
+
+/* ---------- quality checks: concrete problems with the training data, each with a place to fix it ---------- */
+function qualityChecks(){
+  var t=T(), n=S(), out=[];
+  function Q(sev,title,detail,page){ out.push({sev:sev,title:title,detail:detail,page:page}); }
+  BRANDS.forEach(function(b){
+    var p=t.brands[b[0]], miss=BRAND_FIELDS.filter(function(f){ return !has(p[f[0]]); }).map(function(f){ return f[1]; });
+    if(miss.length) Q(miss.length>5?'high':'med','Missing '+b[1]+' information','Empty: '+miss.join(', ')+'.','aitraining.brands');
+    if(has(p.description)||has(p.services)){
+      var txt=BRAND_FIELDS.map(function(f){ return p[f[0]]; }).join(' ');
+      var own=termCount(BRAND_TERMS[b[0]],txt), foreign=termCount(BRAND_TERMS[b[0]==='digital'?'outdoor':'digital'],txt);
+      if(foreign>0&&foreign>own) Q('high',b[1]+' profile reads like the other brand','Its text mentions the other brand\'s terms '+foreign+' times and its own '+own+'. Check for mixed-up descriptions.','aitraining.brands');
+    }
+    if(p.reviewed&&daysAgo(p.reviewed)>90) Q('med',b[1]+' offers may be outdated','This profile was last reviewed '+daysAgo(p.reviewed)+' days ago. Confirm services, products and pricing are current.','aitraining.brands');
+    else if(!p.reviewed&&brandConfigured(b[0])) Q('low',b[1]+' has never been reviewed','Open the profile, confirm the details, and the review date is recorded.','aitraining.brands');
+  });
+  /* shared fields that read like the other brand */
+  var shared=[bizGet('industry'),bizGet('description'),bizGet('services'),bizGet('products')].join(' ');
+  if(termCount(BRAND_TERMS.outdoor,shared)>termCount(BRAND_TERMS.digital,shared)&&termCount(BRAND_TERMS.outdoor,shared)>0)
+    Q('high','Conflicting brand descriptions','The shared Business fields describe an outdoor brand, but the workspace business is the agency. Move that text to the NON MAJORITY profile.','aitraining.business');
+  /* mixed or untagged brand content */
+  var items=[];
+  n.examples.forEach(function(e){ items.push({k:'example',label:e.title||labelOf(EX_KINDS,e.kind),brand:brandOf(e),text:e.text,page:'aitraining.examples'}); });
+  n.instructions.forEach(function(i){ items.push({k:'rule',label:clip(i.text,50),brand:brandOf(i),text:i.text,page:'aitraining.rules'}); });
+  t.groups.forEach(function(g){ items.push({k:'instruction',label:g.name||clip(g.text,40),brand:brandOf(g),text:g.text,page:'aitraining.custom'}); });
+  var mixed=[], untagged=0, both=brandConfigured('digital')&&brandConfigured('outdoor');
+  items.forEach(function(it){
+    var d=termCount(BRAND_TERMS.digital,it.text), o=termCount(BRAND_TERMS.outdoor,it.text);
+    if(it.brand==='digital'&&o>0&&o>d) mixed.push(it); else if(it.brand==='outdoor'&&d>0&&d>o) mixed.push(it);
+    else if(it.brand==='all'&&both&&(d>0||o>0)&&(d===0||o===0)) untagged++;
+  });
+  if(mixed.length) Q('high','Content mixes the two brands',mixed.length+' item'+(mixed.length===1?'':'s')+' tagged for one brand read like the other: '+mixed.slice(0,3).map(function(m){ return m.k+' “'+m.label+'”'; }).join('; ')+'.',mixed[0].page);
+  if(untagged) Q('med',untagged+' item'+(untagged===1?'':'s')+' not assigned to a brand','They are used for both brands, but their wording is specific to one. Set “Applies to” on each so they cannot leak into the other brand.','aitraining.examples');
+  /* examples */
+  var unappr=n.examples.filter(function(e){ return e.approved===false; });
+  if(unappr.length) Q('low',plural(unappr.length,'example')+' saved but not approved','Unapproved examples are ignored by the AI. Approve the ones you stand behind.','aitraining.examples');
+  var dup=[];
+  for(var i=0;i<n.examples.length;i++) for(var j=i+1;j<n.examples.length;j++){
+    var a=n.examples[i], c=n.examples[j];
+    if(norm(a.text)===norm(c.text)||(a.kind===c.kind&&overlap(tokens(a.text),tokens(c.text))>0.9)) dup.push([a,c]);
+  }
+  if(dup.length) Q('med',plural(dup.length,'duplicate example pair'),'“'+clip(dup[0][0].title||dup[0][0].text,40)+'” is nearly identical to “'+clip(dup[0][1].title||dup[0][1].text,40)+'”. Keep one so it does not dominate retrieval.','aitraining.examples');
+  var short=n.examples.filter(function(e){ return words(e.text)<8; });
+  if(short.length) Q('low',plural(short.length,'example')+' too short to teach anything','Examples under 8 words give the AI no structure to learn from.','aitraining.examples');
+  /* custom instructions */
+  var thin=t.groups.filter(function(g){ return g.enabled!==false&&str(g.text).trim().length<60; });
+  if(thin.length) Q('med','Incomplete custom instructions',plural(thin.length,'enabled instruction')+' '+(thin.length===1?'is':'are')+' under 60 characters.','aitraining.custom');
+  if(!t.groups.some(function(g){ return g.enabled!==false&&str(g.text).trim().length>=60; })) Q('med','No custom instructions','Without them the AI has no standing rules for behavior. Apply the master training or write your own.','aitraining.custom');
+  /* selection */
+  if(both&&!t.activeBrand) Q('low','No brand selected','The AI is inferring the brand from each request. Choose a brand on any AI Training page to make it explicit.','aitraining.brands');
+  var rank={high:0,med:1,low:2};
+  return out.sort(function(a,b){ return rank[a.sev]-rank[b.sev]; });
+}
+function qualityHTML(){
+  var q=qualityChecks();
+  var h=sect('Quality checks',null,q.length)+'<p class="hint" style="margin-top:0">Specific problems found in your saved training, with where to fix each one.</p>';
+  if(!q.length) return h+'<div class="card"><b>No problems found.</b> <span class="hint">Both brands are complete, nothing is mixed or duplicated, and every instruction is complete.</span></div>';
+  return h+q.map(function(c){
+    return '<div class="card nm-rec"><div class="nm-row" style="justify-content:space-between"><div class="nm-row">'+pill(c.sev==='high'?'FIX FIRST':c.sev==='med'?'SHOULD FIX':'MINOR',c.sev==='high'?'hot':c.sev==='med'?'high':'flat')+'<b>'+esc(c.title)+'</b></div>'+B('Fix','goto',c.page,null,'pri')+'</div>'+
+      '<p class="hint" style="margin:6px 0 0">'+esc(c.detail)+'</p></div>';
+  }).join('');
 }
 
 /* ---------- autosave: one place that knows every training field path ---------- */
@@ -17327,6 +17590,8 @@ function applyField(path,val){
   var p=path.split('.'), t=T(), n=S();
   if(p[0]==='about'||p[0]==='audience'||p[0]==='voice'){ t[p[0]][p[1]]=val; noteEdit(p[0]); }
   else if(p[0]==='business'){ bizSet(p[1],val); noteEdit('business'); }
+  else if(p[0]==='brand'){ var bp=t.brands[p[1]]; if(bp){ bp[p[2]]=val; bp.reviewed=today(); } noteEdit('brands'); }
+  else if(p[0]==='ex'){ var xe=n.examples.filter(function(x){ return x.id===p[1]; })[0]; if(xe) xe[p[2]]=val; noteEdit('examples'); }
   else if(p[0]==='bizc'){ var c=t.business.custom.filter(function(x){ return x.id===p[1]; })[0]; if(c) c[p[2]]=val; noteEdit('business'); }
   else if(p[0]==='pillar'){ var pl=t.pillars.filter(function(x){ return x.id===p[1]; })[0]; if(pl) pl[p[2]]=val; noteEdit('rules'); }
   else if(p[0]==='group'){ var g=t.groups.filter(function(x){ return x.id===p[1]; })[0]; if(g) g[p[2]]=val; noteEdit('custom'); }
@@ -17404,6 +17669,7 @@ function pgHealth(){
   if(nb) h+='<div class="card nm-next"><span class="lbl">NEXT BEST TRAINING</span><p class="nm-nexttxt">'+esc(nb.next)+'</p>'+
     '<div class="nm-row">'+B('Go there','goto',nb.page,null,'pri')+'<span class="hint" style="margin:0">'+esc(nb.label)+': '+esc(nb.status)+'</span></div></div>';
   else h+='<div class="card nm-next"><span class="lbl">NEXT BEST TRAINING</span><p class="nm-nexttxt">Every area is fully configured. Keep adding examples as your voice evolves.</p></div>';
+  h+=qualityHTML();
   h+='<div class="nm-health">'+sum.categories.map(function(c){
     var cls=c.status==='Strong'||c.status==='Good'?'good':c.status==='Not Configured'?'flat':'med';
     return '<div class="card nm-hc"><div class="nm-row" style="justify-content:space-between"><b>'+esc(c.label)+'</b>'+pill(c.status,cls)+'</div>'+
@@ -17427,7 +17693,7 @@ function exportTraining(){
   var t=JSON.parse(JSON.stringify(T())), n=S();
   var biz={}; Object.keys(BIZ_MAP).forEach(function(k){ biz[k]=bizGet(k); });
   var payload={exportedAt:nowISO(),business:(OS.orgById(DB.activeOrg)||{}).name||'',
-    userProvided:{about:t.about,businessKnowledge:Object.assign(biz,t.business),audience:t.audience,brandVoice:t.voice,contentRules:n.instructions,
+    userProvided:{about:t.about,brandProfiles:t.brands,activeBrand:t.activeBrand,businessKnowledge:Object.assign(biz,t.business),audience:t.audience,brandVoice:t.voice,contentRules:n.instructions,
       contentPillars:t.pillars,goals:t.goals,examples:n.examples,customInstructions:t.groups},
     aiInferred:{learnings:n.learnings,optimizations:n.optimizations,experiments:n.experiments,recommendations:n.recommendations},learningLog:n.events};
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -17435,7 +17701,7 @@ function exportTraining(){
   document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
   logEvent('export','AI training exported','A JSON copy was downloaded.','Privacy & control'); L.save(); L.toast('Exported');
 }
-var RESET_TEXT={about:'This clears everything on About Me.',business:'This clears every field on Business Knowledge — including the same fields in AI Memory — and all additional entries.',
+var RESET_TEXT={about:'This clears everything on About Me.',brands:'This clears both brand profiles and the brand selection.',business:'This clears every field on Business Knowledge — including the same fields in AI Memory — and all additional entries.',
   audience:'This clears every audience field.',voice:'This clears your voice styles and every brand voice field.',rules:'This deletes all content rules and content pillars.',
   goals:'This deletes all goals.',examples:'This deletes all saved examples. Learnings already approved from them are kept — remove those under AI Intelligence.',
   custom:'This deletes all custom instructions.',all:'This clears everything you provided: About Me, Business Knowledge (including the same fields in AI Memory), Audience, Brand Voice, Content Rules, Pillars, Goals, Examples and Custom Instructions. AI memory is kept.'};
@@ -17449,13 +17715,14 @@ function resetDo(key){
     if(k==='about') t.about=b.about;
     else if(k==='business'){ Object.keys(BIZ_MAP).forEach(function(f){ bizSet(f,''); }); t.business=b.business; }
     else if(k==='audience') t.audience=b.audience;
+    else if(k==='brands'){ t.brands=b.brands; t.activeBrand=''; }
     else if(k==='voice') t.voice=b.voice;
     else if(k==='rules'){ n.instructions=[]; t.pillars=[]; }
     else if(k==='goals') t.goals=[];
     else if(k==='examples') n.examples=[];
     else if(k==='custom') t.groups=[];
   }
-  if(key==='all') ['about','business','audience','voice','rules','goals','examples','custom'].forEach(one); else one(key);
+  if(key==='all') ['about','brands','business','audience','voice','rules','goals','examples','custom'].forEach(one); else one(key);
   touchTraining(); logEvent('reset',key==='all'?'All AI training reset':(TRAIN_PAGES[key]||{title:key}).title+' reset','You cleared this section.','Privacy & control');
   L.save(); L.closeModal(); rerender(); L.toast('Reset');
 }
@@ -17729,7 +17996,7 @@ function expLearn(id){
 }
 
 /* ---------- AI recommendations ---------- */
-var REC_PAGES=['aitraining.about','aitraining.business','aitraining.audience','aitraining.voice','aitraining.rules','aitraining.goals','aitraining.examples','aitraining.custom','aitraining.health',
+var REC_PAGES=['aitraining.about','aitraining.brands','aitraining.business','aitraining.audience','aitraining.voice','aitraining.rules','aitraining.goals','aitraining.examples','aitraining.custom','aitraining.health',
   'content.studio','content.cmideas','content.scripts','content.calendar','content.analytics','content.intel','aiintel.learned'];
 function pgRecs(){
   var list=buildRecommendations(), f=U.recF||'open', td=today();
@@ -17854,7 +18121,7 @@ defAction('proposeLearning','draft','Propose something the AI has noticed about 
 var CU=IA.CUSTOM;
 CU.csCommand=pgCommand; CU.csIdeas=pgIdeas; CU.csScripts=pgScripts; CU.contentCal=pgCalendar; CU.csPost=pgPost; CU.csFilm=pgFilm;
 CU.csAnalytics=pgAnalytics; CU.csIntel=pgIntel; CU.csProduction=pgProduction;
-['about','business','audience','voice','rules','goals','examples','custom'].forEach(function(k){ CU['trn_'+k]=function(){ return pgTrain(k); }; });
+['about','brands','business','audience','voice','rules','goals','examples','custom'].forEach(function(k){ CU['trn_'+k]=function(){ return pgTrain(k); }; });
 CU.trn_health=pgHealth; CU.ai_learned=pgLearned; CU.ai_opt=pgOptimizing; CU.ai_log=pgLog; CU.ai_exp=pgExperiments; CU.ai_recs=pgRecs;
 
 var contentSec=IA.sectionById('content');
@@ -17891,7 +18158,7 @@ if(!IA.sectionById('aitraining')){
   var aiIdx=IA.SECTIONS.indexOf(IA.sectionById('ai'))+1;
   IA.SECTIONS.splice(aiIdx,0,
     {id:'aitraining',icon:'✎',label:'AI Training',short:'Train',desc:'Teach the AI about you, your business, your audience and your voice',ai:'What does my AI know about my business?',pages:[
-      {id:'about',label:'About Me',custom:'trn_about'},{id:'business',label:'Business',custom:'trn_business'},{id:'audience',label:'Audience',custom:'trn_audience'},
+      {id:'about',label:'About Me',custom:'trn_about'},{id:'brands',label:'Brands',custom:'trn_brands'},{id:'business',label:'Business',custom:'trn_business'},{id:'audience',label:'Audience',custom:'trn_audience'},
       {id:'voice',label:'Brand Voice',custom:'trn_voice'},{id:'rules',label:'Content Rules',custom:'trn_rules'},{id:'goals',label:'Goals',custom:'trn_goals'},
       {id:'examples',label:'Examples',custom:'trn_examples'},{id:'custom',label:'Custom Instructions',custom:'trn_custom'},{id:'health',label:'Training Health',custom:'trn_health'}]},
     {id:'aiintel',icon:'✧',label:'AI Intelligence',short:'Insight',desc:'What the AI has learned, what it is working on, and why',ai:'What have you learned about my content?',pages:[
@@ -18049,7 +18316,7 @@ document.addEventListener('click',function(e){
   case 'bizDel': T().business.custom=T().business.custom.filter(function(c){ return c.id!==a; }); L.save(); rerender(); break;
   case 'ruleAdd':
     var rt=($('#ruleText')||{}).value||''; if(!rt.trim()){ L.toast('Write the rule first'); break; }
-    o={id:uid('ru'),text:rt.trim(),priority:($('#rulePri')||{}).value||'IMPORTANT',enabled:true,category:'content',origin:'user',created:nowISO(),updated:nowISO()};
+    o={id:uid('ru'),text:rt.trim(),priority:($('#rulePri')||{}).value||'IMPORTANT',brand:($('#ruleBrand')||{}).value||'all',enabled:true,category:'content',origin:'user',created:nowISO(),updated:nowISO()};
     n.instructions.push(o); logEvent('instruction_added',o.text,'Priority '+o.priority+'.','Content Rules',o.id); touchTraining(); L.save(); rerender(); L.toast('Rule added'); break;
   case 'ruleSuggest':
     var sg=SUGGESTED_RULES[+a]; if(!sg) break;
@@ -18071,15 +18338,20 @@ document.addEventListener('click',function(e){
   case 'goalDel': T().goals=T().goals.filter(function(q){ return q.id!==a; }); L.save(); rerender(); break;
   case 'exAdd':
     var et=($('#exText')||{}).value||''; if(!et.trim()){ L.toast('Paste the example first'); break; }
-    o={id:uid('ex'),kind:($('#exKind')||{}).value||'good_script',title:(($('#exTitle')||{}).value||'').trim(),text:et.trim(),created:nowISO(),analyzed:false};
+    o={id:uid('ex'),kind:($('#exKind')||{}).value||'good_script',title:(($('#exTitle')||{}).value||'').trim(),text:et.trim(),brand:($('#exBrand')||{}).value||'all',approved:!$('#exApproved')||$('#exApproved').checked,created:nowISO(),analyzed:false};
     n.examples.unshift(o); logEvent('example_added',o.title||labelOf(EX_KINDS,o.kind),labelOf(EX_KINDS,o.kind),'Examples',o.id); touchTraining(); L.save(); rerender(); L.toast('Example saved'); break;
   case 'exDel': o=n.examples.filter(function(q){ return q.id===a; })[0]; n.examples=n.examples.filter(function(q){ return q.id!==a; }); if(o) logEvent('example_removed',o.title||labelOf(EX_KINDS,o.kind),'You deleted this example.','Examples'); L.save(); rerender(); break;
+  case 'exApprove': o=n.examples.filter(function(q){ return q.id===a; })[0]; if(o){ o.approved=o.approved===false; logEvent('example_added',o.title||labelOf(EX_KINDS,o.kind),o.approved?'Approved — now used as a reference.':'Unapproved — no longer used.','Examples',o.id); touchTraining(); L.save(); rerender(); } break;
+  case 'brandSet': T().activeBrand=a||''; logEvent('training_updated','Brand set to '+(a?brandLabel(a):'Auto'),'The AI uses this brand\'s profile, rules and examples.','AI Training','brands'); touchTraining(); L.save(); rerender(); L.toast(a?('Writing for '+brandLabel(a)):'Brand chosen from each request'); break;
+  case 'masterAsk': masterAsk(); break;
+  case 'masterDo': masterApply(); break;
+  case 'masterRestore': masterRestore(); break;
   case 'teach': teachStart(a); break;
   case 'teachApprove': teachApprove(+a); break;
   case 'teachReject': teachReject(+a); break;
   case 'teachAll':
     teachSyncDom(); (U.teach&&U.teach.items||[]).forEach(function(it,i){ if(it.state==='pending'&&has(it.text)) teachApprove(i); }); break;
-  case 'groupAdd': T().groups.push({id:uid('gr'),name:'',text:'',enabled:true}); L.save(); rerender(); break;
+  case 'groupAdd': T().groups.push({id:uid('gr'),name:'',text:'',brand:T().activeBrand||'all',enabled:true}); L.save(); rerender(); break;
   case 'groupStarter': T().groups.push({id:uid('gr'),name:'How I want you to write',text:STARTER_CUSTOM,enabled:true}); L.save(); rerender(); break;
   case 'groupToggle': o=T().groups.filter(function(q){ return q.id===a; })[0]; if(o){ o.enabled=o.enabled===false; L.save(); rerender(); } break;
   case 'groupDel': T().groups=T().groups.filter(function(q){ return q.id!==a; }); L.save(); rerender(); break;
